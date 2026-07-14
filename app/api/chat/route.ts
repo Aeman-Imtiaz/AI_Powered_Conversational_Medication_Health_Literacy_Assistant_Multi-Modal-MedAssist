@@ -11,12 +11,21 @@ async function sendWithRetry(
       const result = await chat.sendMessage(message);
       return result.response.text();
     } catch (error) {
+      const isRateLimited =
+        error instanceof Error &&
+        (error.message.includes("429") || error.message.includes("Too Many Requests"));
+
       const isOverloaded =
         error instanceof Error &&
         (error.message.includes("503") || error.message.includes("overloaded"));
 
+      // Rate limit (429) ho to retry na karein — turant user ko bata dein
+      if (isRateLimited) {
+        throw error;
+      }
+
+      // Sirf temporary overload (503) ke liye retry karein
       if (isOverloaded && attempt < maxRetries) {
-        // Thori dair rukein phir dobara try karein (1s, 2s, 3s...)
         await new Promise((resolve) => setTimeout(resolve, attempt * 1000));
         continue;
       }
@@ -39,13 +48,16 @@ export async function POST(req: Request) {
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
     const model = genAI.getGenerativeModel({
-  model: "gemini-flash-latest",
+  model: "gemini-flash-lite-latest",
   systemInstruction: `You are MedAssist — an AI assistant that helps people understand their medications. You can communicate in both Urdu and English, matching whichever language the user uses.
 
 YOUR RULES:
 1. You never give medical advice — only general information and guidance.
 2. Whenever your response involves dosage, side effects, or drug combinations, always end with this disclaimer: "⚠️ This is not medical advice. Please consult your doctor or pharmacist for guidance specific to you."
-3. If a user mentions overdose, self-harm, or any emergency situation, immediately tell them to contact their nearest hospital or emergency number right away — do not give general advice in this case.
+3. If a user mentions overdose, self-harm, or any emergency situation, immediately and firmly redirect them to real help. Do not give general medical advice in this case. Use exactly these verified Pakistan resources:
+   - Emergency (medical/fire/police): 1122
+   - Umang 24/7 Mental Health Helpline (Pakistan): 0311-7786264
+   Tell them clearly: this is a medical emergency, do not wait for symptoms, go to the nearest hospital emergency room immediately, or call one of the numbers above right now. Never invent, guess, or use any other helpline number — only use the two listed above.
 4. Never guarantee that a specific dose is "safe" for someone — always use words like "generally" or "typically" and refer them to a professional.
 5. If a question is outside your scope (e.g. surgery, diagnosis, or treatment of an unrelated medical condition), clearly state that this is beyond your scope and recommend seeing a doctor.
 6. Always use simple, clear language — avoid complex medical terms, or explain them simply if used.
@@ -62,10 +74,12 @@ YOUR RULES:
 
     return NextResponse.json({ success: true, reply: text });
   } catch (error) {
-    const message =
+   const message =
       error instanceof Error
         ? error.message.includes("503") || error.message.includes("overloaded")
-          ? "Server abhi busy hai, thori dair mein dobara koshish karein."
+          ? "The server is currently busy. Please try again in a moment."
+          : error.message.includes("429") || error.message.includes("Too Many Requests")
+          ? "You're sending messages too quickly. The free plan has a limited number of requests per minute — please wait 30-60 seconds and try again."
           : error.message
         : "Something went wrong";
 
