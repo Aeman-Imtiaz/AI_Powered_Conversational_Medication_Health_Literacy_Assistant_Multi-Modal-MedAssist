@@ -13,35 +13,36 @@ const STORAGE_KEY = "medassist_chat_history";
 
 export default function Home() {
   const [input, setInput] = useState("");
-  const [messages, setMessages] = useState<Message[]>(() => {
-    if (typeof window === "undefined") return [];
-
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return [];
-
-    try {
-      const parsed: unknown = JSON.parse(saved);
-      return Array.isArray(parsed) ? (parsed as Message[]) : [];
-    } catch {
-      window.localStorage.removeItem(STORAGE_KEY);
-      return [];
-    }
-  });
+  const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  // Jab bhi messages change hon, unhein localStorage mein save kar dein
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed: unknown = JSON.parse(saved);
+        if (Array.isArray(parsed)) {
+           // eslint-disable-next-line react-hooks/set-state-in-effect
+          setMessages(parsed as unknown as Message[]);
+        }
+      } catch {
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
+    }
+    setLoaded(true);
+  }, []);
 
+  useEffect(() => {
+    if (!loaded) return;
     if (messages.length > 0) {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
     } else {
       window.localStorage.removeItem(STORAGE_KEY);
     }
-  }, [messages]);
+  }, [messages, loaded]);
 
-  // Naya message aane par khud-ba-khud neeche scroll karein
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
@@ -60,12 +61,27 @@ export default function Home() {
     setLoading(true);
 
     try {
+      const settingsRaw = window.localStorage.getItem("medassist_settings");
+      let language = "en";
+      let literacyLevel = "simple";
+      if (settingsRaw) {
+        try {
+          const parsed = JSON.parse(settingsRaw);
+          language = parsed.language || "en";
+          literacyLevel = parsed.literacyLevel || "simple";
+        } catch {
+          // ignore, use defaults
+        }
+      }
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           message: input,
           history: messages,
+          language,
+          literacyLevel,
         }),
       });
 
@@ -91,28 +107,48 @@ export default function Home() {
   };
 
   return (
-    <main className="flex min-h-screen flex-col items-center p-8 gap-4">
+    <main className="min-h-screen bg-[#FAFAF9] flex flex-col items-center px-4 py-10 gap-4">
       <div className="w-full max-w-md flex items-center justify-between">
-        <h1 className="text-2xl font-bold">MedAssist Chat</h1>
+        <div className="flex items-center gap-2">
+          <div className="w-9 h-9 rounded-full bg-teal-50 border border-teal-200 flex items-center justify-center text-lg">
+            💊
+          </div>
+          <div>
+            <h1 className="text-lg font-bold text-stone-900 leading-tight">
+              MedAssist
+            </h1>
+            <p className="text-[11px] text-stone-400 leading-tight">
+              Ask about your medications
+            </p>
+          </div>
+        </div>
         {messages.length > 0 && (
           <button
             onClick={clearConversation}
-            className="text-xs text-red-600 border border-red-300 px-2 py-1 rounded hover:bg-red-50"
+            className="text-xs text-stone-500 border border-stone-200 px-3 py-1.5 rounded-full hover:bg-stone-100 transition-colors"
           >
-            Clear Chat
+            Clear
           </button>
         )}
       </div>
 
-      <div className="w-full max-w-md bg-yellow-50 border border-yellow-300 text-yellow-800 text-xs p-3 rounded">
+      <div className="w-full max-w-md bg-amber-50 border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-xl">
         ⚠️ This AI provides general information, not medical advice. Always
         consult your doctor or pharmacist before making any medication
         decisions.
       </div>
 
-      <div className="w-full max-w-md flex flex-col gap-3 border rounded p-4 min-h-75 max-h-125 overflow-y-auto bg-gray-50">
+      <div className="w-full max-w-md flex flex-col gap-4 border border-stone-200 rounded-2xl p-4 min-h-[350px] max-h-[500px] overflow-y-auto bg-white shadow-sm">
         {messages.length === 0 && (
-          <p className="text-gray-400 text-sm">Conversation yahan dikhegi...</p>
+          <div className="flex-1 flex flex-col items-center justify-center text-center gap-2 py-10">
+            <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center text-2xl">
+              🗨️
+            </div>
+            <p className="text-sm text-stone-400 max-w-[220px]">
+              Ask about dosage, side effects, or interactions in Urdu or
+              English
+            </p>
+          </div>
         )}
         {messages.map((msg, i) => (
           <div
@@ -120,10 +156,10 @@ export default function Home() {
             className={`flex flex-col ${msg.role === "user" ? "items-end" : "items-start"}`}
           >
             <div
-              className={`p-2 rounded max-w-[80%] ${
+              className={`px-3.5 py-2.5 rounded-2xl max-w-[85%] text-sm ${
                 msg.role === "user"
-                  ? "bg-black text-white whitespace-pre-wrap"
-                  : "bg-white border prose prose-sm max-w-none"
+                  ? "bg-teal-700 text-white whitespace-pre-wrap rounded-br-sm"
+                  : "bg-stone-50 border border-stone-100 text-stone-800 prose prose-sm max-w-none rounded-bl-sm"
               }`}
             >
               {msg.role === "model" ? (
@@ -132,24 +168,28 @@ export default function Home() {
                 msg.text
               )}
             </div>
-            <span className="text-[10px] text-gray-400 mt-1">{msg.time}</span>
+            <span className="text-[10px] text-stone-300 mt-1 px-1">
+              {msg.time}
+            </span>
           </div>
         ))}
         {loading && (
           <div className="flex items-start">
-            <div className="bg-white border rounded p-2 text-sm text-gray-400">
-              Typing...
+            <div className="bg-stone-50 border border-stone-100 rounded-2xl rounded-bl-sm px-4 py-3 flex gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-stone-300 animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-stone-300 animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1.5 h-1.5 rounded-full bg-stone-300 animate-bounce" />
             </div>
           </div>
         )}
         <div ref={bottomRef} />
       </div>
 
-      <div className="w-full max-w-md flex gap-2">
+      <div className="w-full max-w-md flex gap-2 items-end">
         <textarea
-          className="border rounded p-2 flex-1"
-          rows={2}
-          placeholder="Apna sawal likhein..."
+          className="border border-stone-200 rounded-xl px-3.5 py-2.5 flex-1 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-teal-600/30 focus:border-teal-600"
+          rows={1}
+          placeholder="Type here..."
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
@@ -162,9 +202,10 @@ export default function Home() {
         <button
           onClick={sendMessage}
           disabled={loading}
-          className="bg-black text-white px-4 py-2 rounded disabled:opacity-50"
+          className="bg-teal-700 text-white w-10 h-10 rounded-xl hover:bg-teal-800 transition-colors disabled:opacity-40 flex items-center justify-center flex-shrink-0"
+          aria-label="Send message"
         >
-          Send
+          ➤
         </button>
       </div>
     </main>

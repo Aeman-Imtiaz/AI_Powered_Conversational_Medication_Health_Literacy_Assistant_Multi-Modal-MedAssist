@@ -1,26 +1,64 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #FAFAF9;
+  --foreground: #1C1917;
+  --muted: #6B7280;
+  --border: #E7E5E4;
+
+  --color-primary: #0F766E;
+  --color-primary-dark: #0B5750;
+  --color-primary-tint: #F0FDFA;
+  --color-primary-tint-border: #99F6E4;
+
+  --color-warning: #B45309;
+  --color-warning-bg: #FFFBEB;
+  --color-warning-border: #FDE68A;
+  --color-danger: #B91C1C;
+  --color-danger-bg: #FEF2F2;
+  --color-danger-border: #FECACA;
+  --color-success-bg: #F0FDF4;
+  --color-success-text: #15803D;
+
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
+
+  --tap-target-min: 2.75rem;
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  --font-urdu: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  --color-medical-bg: var(--background);
+  --color-medical-surface: #FFFFFF;
+  --color-medical-text: var(--foreground);
+  --color-medical-muted: var(--muted);
+  --color-medical-border: var(--border);
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-brand-50: var(--color-primary-tint);
+  --color-brand-100: #CCFBF1;
+  --color-brand-200: var(--color-primary-tint-border);
+  --color-brand-600: var(--color-primary);
+  --color-brand-700: var(--color-primary-dark);
+
+  --color-accent-600: #16A34A;
+  --color-danger-50: var(--color-danger-bg);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+}
+
+[lang="ur"],
+.font-urdu {
+  font-family: var(--font-urdu);
+  direction: rtl;
+  line-height: 1.9;
 }
