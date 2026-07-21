@@ -9,6 +9,7 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
 import FloatingBlob from "../components/FloatingBlob";
+import Footer from "../components/Footer";
 
 type Profile = {
   fullName: string;
@@ -69,20 +70,20 @@ export default function ProfilePage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md text-center z-10"
+        className="relative w-full max-w-2xl text-center z-10"
       >
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-br from-[#2563EB] to-[#14B8A6] shadow-md mb-3">
           <User size={24} className="text-white" />
         </div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
-          Your Profile
+       <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+          {profile.fullName ? `${profile.fullName.split(" ")[0]}'s Profile` : "Your Profile"}
         </h1>
         <p className="text-sm text-slate-400 mt-1">
           This helps MedAssist give you better, more relevant answers
         </p>
       </motion.div>
 
-      <GlassCard hover={false} className="relative w-full max-w-md p-5 z-10">
+      <GlassCard hover={false} className="relative w-full max-w-2xl p-5 z-10">
         <form onSubmit={handleSave} className="flex flex-col gap-3">
           <div>
             <label className="text-xs text-slate-500 block mb-1">Full Name</label>
@@ -172,6 +173,7 @@ export default function ProfilePage() {
           </motion.button>
         </form>
       </GlassCard>
+      <Footer />
     </main>
   );
 }

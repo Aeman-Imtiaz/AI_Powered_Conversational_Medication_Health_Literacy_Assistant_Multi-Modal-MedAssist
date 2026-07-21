@@ -17,16 +17,18 @@ import {
   LogOut,
   Bell,
   Info,
+  User,
 } from "lucide-react";
 import { doc, getDoc, setDoc, deleteField, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
+import Footer from "../components/Footer";
 import FloatingBlob from "../components/FloatingBlob";
 import { signOut } from "firebase/auth";
 
 type Settings = {
-  language: "en" | "ur";
+  language: "en" | "ur" | "roman";
   literacyLevel: "simple" | "detailed";
   caregivers: string[];
   notifications: boolean;
@@ -151,7 +153,7 @@ export default function SettingsPage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md z-10"
+        className="relative w-full max-w-2xl z-10"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -179,7 +181,17 @@ export default function SettingsPage() {
         </div>
       </motion.div>
 
-      <Link href="/shared" className="relative w-full max-w-md z-10">
+      <Link href="/profile" className="relative w-full max-w-2xl z-10">
+        <GlassCard delay={0.15} className="p-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <User size={16} className="text-[#2563EB]" />
+            <span className="text-sm font-medium text-slate-700">My Profile</span>
+          </div>
+          <ChevronRight size={16} className="text-slate-300" />
+        </GlassCard>
+      </Link>
+
+      <Link href="/shared" className="relative w-full max-w-2xl z-10">
         <GlassCard delay={0.18} className="p-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-[#14B8A6]" />
@@ -189,7 +201,7 @@ export default function SettingsPage() {
         </GlassCard>
       </Link>
 
-      <GlassCard delay={0.2} hover={false} className="relative w-full max-w-md p-4 z-10">
+      <GlassCard delay={0.2} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center gap-2 mb-3">
           <Globe size={16} className="text-[#2563EB]" />
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -197,23 +209,23 @@ export default function SettingsPage() {
           </h2>
         </div>
         <div className="flex bg-slate-100/70 rounded-2xl p-1">
-          {(["en", "ur"] as const).map((lang) => (
+          {(["en", "ur", "roman"] as const).map((lang) => (
             <button
               key={lang}
               onClick={() => setSettings((prev) => ({ ...prev, language: lang }))}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-all ${
+              className={`flex-1 py-2.5 rounded-xl text-xs sm:text-sm font-medium transition-all ${
                 settings.language === lang
                   ? "bg-white text-[#2563EB] shadow-sm"
                   : "text-slate-500"
               }`}
             >
-              {lang === "en" ? "English" : "اردو"}
+              {lang === "en" ? "English" : lang === "ur" ? "اردو" : "Roman Urdu"}
             </button>
           ))}
         </div>
       </GlassCard>
 
-      <GlassCard delay={0.1} hover={false} className="relative w-full max-w-md p-4 z-10">
+      <GlassCard delay={0.1} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center gap-2 mb-3">
           <GraduationCap size={16} className="text-[#14B8A6]" />
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -252,7 +264,7 @@ export default function SettingsPage() {
         </div>
       </GlassCard>
 
-      <GlassCard delay={0.15} hover={false} className="relative w-full max-w-md p-4 z-10">
+      <GlassCard delay={0.15} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center justify-between mb-1">
           <div className="flex items-center gap-2">
             <Users size={16} className="text-[#2563EB]" />
@@ -310,7 +322,7 @@ export default function SettingsPage() {
         </div>
       </GlassCard>
 
-      <GlassCard delay={0.18} hover={false} className="relative w-full max-w-md p-4 z-10">
+      <GlassCard delay={0.18} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Bell size={16} className="text-[#2563EB]" />
@@ -338,7 +350,7 @@ export default function SettingsPage() {
         </p>
       </GlassCard>
 
-      <GlassCard delay={0.2} hover={false} className="relative w-full max-w-md z-10 overflow-hidden">
+      <GlassCard delay={0.2} hover={false} className="relative w-full max-w-2xl z-10 overflow-hidden">
         <div className="px-4 pt-4 pb-2 flex items-center gap-2">
           <ShieldCheck size={16} className="text-[#14B8A6]" />
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -361,7 +373,7 @@ export default function SettingsPage() {
         </button>
       </GlassCard>
 
-      <GlassCard delay={0.22} hover={false} className="relative w-full max-w-md p-4 z-10">
+      <GlassCard delay={0.22} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center gap-2 mb-2">
           <Info size={16} className="text-[#2563EB]" />
           <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
@@ -376,7 +388,7 @@ export default function SettingsPage() {
       </GlassCard>
 
       {showClearConfirm && (
-        <GlassCard hover={false} className="relative w-full max-w-md p-4 bg-red-50/90 border-red-200 z-10">
+        <GlassCard hover={false} className="relative w-full max-w-2xl p-4 bg-red-50/90 border-red-200 z-10">
           <p className="text-sm text-red-700">
             This will permanently delete your chat history, medications, and
             preferences. This cannot be undone.
@@ -398,9 +410,7 @@ export default function SettingsPage() {
         </GlassCard>
       )}
 
-      <p className="relative text-xs text-slate-400 px-1 z-10">
-        Not a substitute for professional medical advice.
-      </p>
+      <Footer />
     </main>
   );
 }

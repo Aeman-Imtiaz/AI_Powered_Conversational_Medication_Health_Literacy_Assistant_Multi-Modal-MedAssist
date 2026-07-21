@@ -47,7 +47,7 @@ export default function SharedPage() {
       <motion.div
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
-        className="relative w-full max-w-md z-10"
+        className="relative w-full max-w-2xl z-10"
       >
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#14B8A6] to-[#2563EB] flex items-center justify-center shadow-sm">
@@ -65,7 +65,7 @@ export default function SharedPage() {
       </motion.div>
 
       {loaded && owners.length === 0 && (
-        <div className="relative w-full max-w-md flex flex-col items-center text-center gap-3 py-14 z-10">
+        <div className="relative w-full max-w-2xl flex flex-col items-center text-center gap-3 py-14 z-10">
           <div className="w-14 h-14 rounded-full bg-[#14B8A6]/10 flex items-center justify-center">
             <Users size={26} className="text-[#14B8A6]" />
           </div>
@@ -75,7 +75,7 @@ export default function SharedPage() {
         </div>
       )}
 
-      <div className="relative w-full max-w-md flex flex-col gap-3 z-10">
+      <div className="relative w-full max-w-2xl flex flex-col gap-3 z-10">
         {owners.map((owner) => (
           <GlassCard key={owner.uid} className="p-4">
             <button

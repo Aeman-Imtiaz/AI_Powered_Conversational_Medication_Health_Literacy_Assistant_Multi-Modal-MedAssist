@@ -21,8 +21,8 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200/70 z-50">
-      <div className="max-w-md mx-auto flex items-stretch justify-around py-2 px-2">
-        {tabs.map(({ href, label, icon: Icon }) => {
+<div className="max-w-2xl mx-auto flex items-stretch justify-around">
+          {tabs.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <Link

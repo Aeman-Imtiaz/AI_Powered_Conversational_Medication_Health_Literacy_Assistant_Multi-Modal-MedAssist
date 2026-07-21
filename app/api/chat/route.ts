@@ -35,7 +35,7 @@ async function sendWithRetry(
 
 export async function POST(req: Request) {
   try {
-    const { message, history, medications, language, literacyLevel } = await req.json();
+    const { message, history, medications, language, literacyLevel, profile } = await req.json();
 
     if (!message) {
       return NextResponse.json(
@@ -56,8 +56,10 @@ export async function POST(req: Request) {
     const languageInstruction =
       language === "ur"
         ? `CRITICAL LANGUAGE RULE: You must respond ONLY in native Urdu script (اردو رسم الخط), using the Perso-Arabic alphabet — NOT Roman/Latin letters, even if the user's messages are in Roman Urdu or English. For example, write "آپ کی دوا" not "aap ki dawa". This applies to every single response, no exceptions, regardless of what script appears earlier in the conversation.`
+        : language === "roman"
+        ? `CRITICAL LANGUAGE RULE: You must respond ONLY in Roman Urdu (Urdu language written in Latin/English alphabet), NOT in native Urdu script (اردو) and NOT in plain English. For example, write "aap ki dawa" not "آپ کی دوا" and not "your medicine". Use natural, everyday Roman Urdu phrasing, the way people commonly text in Pakistan. This applies to every single response, no exceptions.`
         : "The user has selected English as their preferred language. Always respond in English, regardless of what script the user types in.";
-        
+
     const literacyInstruction =
       literacyLevel === "detailed"
         ? "DETAILED MODE: For each medicine, explain the mechanism of action (how it works in the body), not just what it's for. Include relevant interaction warnings between the specific medicines listed. Longer, thorough responses are expected and encouraged here."
@@ -70,6 +72,17 @@ export async function POST(req: Request) {
                 `- ${med.name}: ${med.dosage}, ${med.frequency}`
             )
             .join("\n")}`
+        : "";
+
+    const profileContext =
+      profile && (profile.age || profile.conditions || profile.allergies || profile.notes)
+        ? `\n\nUSER'S PROFILE (use this to personalize and make suggestions more relevant and safe, but never state it back verbatim unless asked):
+${profile.age ? `- Age: ${profile.age}` : ""}
+${profile.gender ? `- Gender: ${profile.gender}` : ""}
+${profile.conditions ? `- Existing health conditions: ${profile.conditions}` : ""}
+${profile.allergies ? `- Known allergies: ${profile.allergies}` : ""}
+${profile.notes ? `- Other notes: ${profile.notes}` : ""}
+IMPORTANT: If the user's known allergies overlap with something they're asking about, warn them clearly. Factor in age and existing conditions when giving general information (e.g. be more cautious with elderly users or those with relevant conditions), but always still redirect to a doctor for anything specific to their situation.`
         : "";
 
     const genAI = new GoogleGenerativeAI(apiKey);
@@ -91,8 +104,9 @@ YOUR RULES:
 5. If a question is outside your scope (e.g. surgery, diagnosis, or treatment of an unrelated medical condition), clearly state that this is beyond your scope and recommend seeing a doctor.
 6. Avoid complex medical terms, or explain them simply if used.
 7. You have access to the user's medication list below, if provided. Reference it when relevant, and ground any claim about their specific medications only in this list — never invent drug interactions, dosages, or side effects not present in it.
-8. When summarizing extracted prescription data, explicitly state your confidence level and ask the user to confirm or correct it before saving.${medicationContext}`,
-    });
+8. When summarizing extracted prescription data, explicitly state your confidence level and ask the user to confirm or correct it before saving.${medicationContext}${profileContext}`,
+
+});
 
     const formattedHistory = (history || []).map((msg: { role: string; text: string }) => ({
       role: msg.role,

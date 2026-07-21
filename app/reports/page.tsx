@@ -8,6 +8,7 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
+import Footer from "../components/Footer";
 import ProgressRing from "../components/ProgressRing";
 import FloatingBlob from "../components/FloatingBlob";
 
@@ -282,9 +283,7 @@ export default function ReportsPage() {
         </>
       )}
 
-      <p className="relative text-xs text-slate-400 px-1 z-10">
-        Not a substitute for professional medical advice.
-      </p>
+      <Footer />
     </main>
   );
 }

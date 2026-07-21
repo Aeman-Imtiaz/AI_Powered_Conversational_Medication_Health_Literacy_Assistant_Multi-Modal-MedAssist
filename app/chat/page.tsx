@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { Pill, Send, Sparkles } from "lucide-react";
 import GlassCard from "../components/GlassCard";
+import Footer from "../components/Footer";
 import FloatingBlob from "../components/FloatingBlob";
 import { useAuth } from "../context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -24,6 +25,15 @@ type Medicine = {
   time: string;
 };
 
+type Profile = {
+  fullName: string;
+  age: string;
+  gender: string;
+  conditions: string;
+  allergies: string;
+  notes: string;
+};
+
 const suggestions = [
   "Panadol kis liye hai?",
   "Side effects of aspirin",
@@ -37,6 +47,7 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [medicines, setMedicines] = useState<Medicine[]>([]);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const [language, setLanguage] = useState("en");
   const [literacyLevel, setLiteracyLevel] = useState("simple");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -59,7 +70,8 @@ export default function ChatPage() {
         setMedicines(Array.isArray(data.medications) ? data.medications : []);
         setLanguage(data.settings?.language || "en");
         setLiteracyLevel(data.settings?.literacyLevel || "simple");
-      } catch {
+        setProfile(data.profile || null);
+          } catch {
         setMessages([]);
         setMedicines([]);
       }
@@ -102,6 +114,7 @@ export default function ChatPage() {
           language,
           literacyLevel,
           medications: medicines,
+          profile,
         }),
       });
 
@@ -135,7 +148,7 @@ export default function ChatPage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md flex items-center justify-between z-10"
+        className="relative w-full max-w-2xl flex items-center justify-between z-10"
       >
         <div className="flex items-center gap-3">
           <div className="relative">
@@ -180,7 +193,7 @@ export default function ChatPage() {
       </motion.div>
 
       {medicines.length > 0 && (
-        <GlassCard delay={0.05} hover={false} className="relative w-full max-w-md px-4 py-3 flex items-center gap-3 z-10">
+        <GlassCard delay={0.05} hover={false} className="relative w-full max-w-2xl px-4 py-3 flex items-center gap-3 z-10">
           <div className="w-9 h-9 rounded-xl bg-[#2563EB]/10 flex items-center justify-center shrink-0">
             <Pill size={16} className="text-[#2563EB]" />
           </div>
@@ -197,13 +210,13 @@ export default function ChatPage() {
         </GlassCard>
       )}
 
-      <div className="relative w-full max-w-md bg-amber-50/90 backdrop-blur border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-2xl z-10">
+      <div className="relative w-full max-w-2xl bg-amber-50/90 backdrop-blur border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-2xl z-10">
         ⚠️ This AI provides general information, not medical advice. Always
         consult your doctor or pharmacist before making any medication
         decisions.
       </div>
 
-      <GlassCard hover={false} className="relative w-full max-w-md flex flex-col gap-4 p-4 min-h-[350px] max-h-[500px] overflow-y-auto z-10">
+      <GlassCard hover={false} className="relative w-full max-w-2xl flex flex-col gap-4 p-4 min-h-[350px] max-h-[500px] overflow-y-auto z-10">
         {messages.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 py-8">
             <motion.div
@@ -289,7 +302,7 @@ export default function ChatPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.2 }}
-        className="relative w-full max-w-md flex gap-2 items-end z-10"
+        className="relative w-full max-w-2xl flex gap-2 items-end z-10"
       >
         <textarea
           className="border border-slate-200 bg-white/90 backdrop-blur rounded-xl px-3.5 py-2.5 flex-1 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-shadow"
@@ -315,6 +328,7 @@ export default function ChatPage() {
           <Send size={16} />
         </motion.button>
       </motion.div>
+       <Footer />
     </main>
   );
 }

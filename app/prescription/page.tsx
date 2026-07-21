@@ -130,7 +130,7 @@ export default function PrescriptionPage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md text-center z-10"
+        className="relative w-full max-w-2xl text-center z-10"
       >
         <motion.div
           animate={{ y: [0, -6, 0] }}
@@ -147,7 +147,7 @@ export default function PrescriptionPage() {
         </p>
       </motion.div>
 
-      <div className="relative w-full max-w-md bg-amber-50/90 backdrop-blur border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-2xl z-10">
+      <div className="relative w-full max-w-2xl bg-amber-50/90 backdrop-blur border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-2xl z-10">
         ⚠️ This is a test tool. Always verify medicine details with your
         doctor or pharmacist.
       </div>
@@ -158,7 +158,7 @@ export default function PrescriptionPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.15 }}
           whileHover={{ scale: 1.01 }}
-          className="relative w-full max-w-md flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/60 backdrop-blur rounded-3xl p-10 cursor-pointer hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors z-10"
+          className="relative w-full max-w-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/60 backdrop-blur rounded-3xl p-10 cursor-pointer hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors z-10"
         >
           <motion.div
             animate={{ scale: [1, 1.06, 1] }}
@@ -191,7 +191,7 @@ export default function PrescriptionPage() {
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="relative w-full max-w-md rounded-3xl overflow-hidden border border-slate-200 shadow-sm z-10"
+            className="relative w-full max-w-2xl rounded-3xl overflow-hidden border border-slate-200 shadow-sm z-10"
           >
             <Image
               src={preview}
@@ -220,7 +220,7 @@ export default function PrescriptionPage() {
           whileTap={{ scale: 0.97 }}
           onClick={analyzeImage}
           disabled={loading}
-          className="relative w-full max-w-md bg-gradient-to-r from-[#2563EB] to-[#06B6D4] text-white font-medium px-4 py-3.5 rounded-2xl shadow-md disabled:opacity-60 flex items-center justify-center gap-2 z-10"
+          className="relative w-full max-w-2xl bg-gradient-to-r from-[#2563EB] to-[#06B6D4] text-white font-medium px-4 py-3.5 rounded-2xl shadow-md disabled:opacity-60 flex items-center justify-center gap-2 z-10"
         >
           {loading ? (
             <>
@@ -234,13 +234,13 @@ export default function PrescriptionPage() {
       )}
 
       {error && (
-        <div className="relative w-full max-w-md border border-red-200 bg-red-50 text-red-700 p-4 rounded-2xl text-sm z-10">
+        <div className="relative w-full max-w-2xl border border-red-200 bg-red-50 text-red-700 p-4 rounded-2xl text-sm z-10">
           {error}
         </div>
       )}
 
       {result && (
-        <div className="relative w-full max-w-md flex flex-col gap-3 z-10">
+        <div className="relative w-full max-w-2xl flex flex-col gap-3 z-10">
           <div className="flex items-center justify-between">
             <h2 className="font-semibold text-slate-800 text-sm">
               Extracted Details

@@ -3,11 +3,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil } from "lucide-react";
+import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
+import Footer from "../components/Footer";
 import ProgressRing from "../components/ProgressRing";
 import FloatingBlob from "../components/FloatingBlob";
 
@@ -34,7 +35,9 @@ export default function MedicationsPage() {
   const [log, setLog] = useState<AdherenceLog>({});
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+const [editingId, setEditingId] = useState<string | null>(null);
+  const [nudge, setNudge] = useState<string | null>(null);
+  const [nudgeLoading, setNudgeLoading] = useState(false);
 
   const [name, setName] = useState("");
   const [dosage, setDosage] = useState("");
@@ -68,6 +71,48 @@ export default function MedicationsPage() {
 
     loadData();
   }, [user]);
+
+  useEffect(() => {
+    if (!loaded || medicines.length === 0) return;
+
+    const getNudge = async () => {
+      setNudgeLoading(true);
+      try {
+        const settingsRaw = await getDoc(doc(db, "users", user!.uid));
+        const settingsData = settingsRaw.exists() ? settingsRaw.data().settings : {};
+
+        const todayKey2 = getTodayKey();
+        const last7 = Array.from({ length: 7 }, (_, i) => {
+          const d = new Date();
+          d.setDate(d.getDate() - (6 - i));
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          const takenIds = log[key] || [];
+          const percentage = medicines.length > 0 ? Math.round((takenIds.length / medicines.length) * 100) : 0;
+          return { label: d.toLocaleDateString("en-US", { weekday: "short" }), percentage };
+        });
+
+        const res = await fetch("/api/nudge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            medicines,
+            weekData: last7,
+            language: settingsData?.language || "en",
+            literacyLevel: settingsData?.literacyLevel || "simple",
+          }),
+        });
+        const data = await res.json();
+        if (data.success) setNudge(data.nudge);
+      } catch {
+        setNudge(null);
+      } finally {
+        setNudgeLoading(false);
+      }
+    };
+
+    getNudge();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loaded, medicines.length]);
 
   useEffect(() => {
     if (!loaded || !user) return;
@@ -153,7 +198,7 @@ export default function MedicationsPage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md z-10"
+        className="relative w-full max-w-2xl z-10"
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -192,7 +237,7 @@ export default function MedicationsPage() {
       </motion.div>
 
       {medicines.length > 0 && (
-        <GlassCard delay={0.05} hover={false} className="relative w-full max-w-md p-5 flex items-center justify-between z-10">
+        <GlassCard delay={0.05} hover={false} className="relative w-full max-w-2xl p-5 flex items-center justify-between z-10">
           <div>
             <p className="text-xs text-slate-400 uppercase tracking-wide">
               Today&apos;s Progress
@@ -206,13 +251,27 @@ export default function MedicationsPage() {
         </GlassCard>
       )}
 
+      {medicines.length > 0 && (nudge || nudgeLoading) && (
+        <GlassCard delay={0.08} hover={false} className="relative w-full max-w-2xl p-4 flex items-start gap-3 z-10 bg-amber-50/60 border-amber-200/70">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+            <Lightbulb size={15} className="text-amber-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-amber-800 mb-0.5">Smart Nudge</p>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              {nudgeLoading ? "Thinking of a helpful tip..." : nudge}
+            </p>
+          </div>
+        </GlassCard>
+      )}
+
       <AnimatePresence>
         {showForm && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: "auto" }}
             exit={{ opacity: 0, height: 0 }}
-            className="w-full max-w-md z-10"
+            className="w-full max-w-2xl z-10"
           >
             <GlassCard hover={false} className="p-5 flex flex-col gap-3">
               <div className="flex items-center justify-between mb-1">
@@ -271,7 +330,7 @@ export default function MedicationsPage() {
       </AnimatePresence>
 
       {medicines.length === 0 && !showForm ? (
-        <div className="relative w-full max-w-md flex flex-col items-center text-center gap-3 py-14 z-10">
+        <div className="relative w-full max-w-2xl flex flex-col items-center text-center gap-3 py-14 z-10">
           <div className="w-14 h-14 rounded-full bg-[#2563EB]/10 flex items-center justify-center">
             <Pill size={26} className="text-[#2563EB]" />
           </div>
@@ -280,7 +339,7 @@ export default function MedicationsPage() {
           </p>
         </div>
       ) : (
-        <div className="relative w-full max-w-md flex flex-col gap-3 z-10">
+        <div className="relative w-full max-w-2xl flex flex-col gap-3 z-10">
           <AnimatePresence>
             {medicines.map((med, i) => {
               const taken = isTakenToday(med.id);
@@ -348,6 +407,7 @@ export default function MedicationsPage() {
           </AnimatePresence>
         </div>
       )}
+      <Footer />
     </main>
   );
 }

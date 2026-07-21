@@ -48,15 +48,17 @@ export default function WelcomePage() {
             variants={fadeUp}
             className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-[1.05] tracking-tight"
           >
-            AI Jo Sirf Jawab
+            Understand your
+ 
+m
             <br />
-            Nahi Deta...
+            medicines,
             <br />
             <span className="bg-gradient-to-r from-[#2563EB] to-[#06B6D4] bg-clip-text text-transparent">
-              Apki Dawa Bhi
+              never miss a 
             </span>
             <br />
-            Samajhta Hai.
+            Dose.
           </motion.h1>
 
           <motion.p
@@ -237,7 +239,7 @@ export default function WelcomePage() {
             },
             {
               icon: MessageCircle,
-              title: "Urdu + English",
+              title: "Urdu + English + Roman Urdu",
               desc: "Jis zaban mein aap sochte hain, usi mein baat karein — koi barrier nahi",
               gradient: "from-[#06B6D4]/10 to-[#06B6D4]/5",
               iconColor: "text-[#06B6D4]",
