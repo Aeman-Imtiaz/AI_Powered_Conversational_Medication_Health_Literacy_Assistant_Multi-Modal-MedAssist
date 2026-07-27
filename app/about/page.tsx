@@ -12,6 +12,8 @@ import {
   Stethoscope,
   Sparkles,
   CheckCircle2,
+  Mic,
+  MapPin,
 } from "lucide-react";
 import Footer from "../components/Footer";
 
@@ -99,10 +101,12 @@ export default function AboutPage() {
 
             {[
               "AI Medication Chat Assistant",
+              "Voice Input & Spoken Replies",
               "Prescription Scanner (OCR)",
               "Medication Reminder & Tracking",
               "Weekly Adherence Reports",
               "Smart AI Nudges",
+              "Nearby Pharmacy Finder",
               "Medicine Information",
               "Simple Language Responses",
               "Health Literacy Support",
@@ -118,6 +122,44 @@ export default function AboutPage() {
                 <span>{item}</span>
               </div>
             ))}
+
+          </div>
+
+        </div>
+
+        {/* New Features Spotlight */}
+
+        <div className="grid md:grid-cols-2 gap-8 mb-10">
+
+          <div className="bg-white rounded-3xl shadow-lg p-8">
+
+            <Mic className="text-blue-600 mb-5" size={34} />
+
+            <h2 className="text-2xl font-bold mb-4">
+              Voice Medicine Assistant
+            </h2>
+
+            <p className="text-slate-600 leading-8">
+              Don&apos;t feel like typing? Just speak your question — in
+              English, Urdu, or Roman Urdu — and MedAssist replies out loud,
+              right from the Chat page.
+            </p>
+
+          </div>
+
+          <div className="bg-white rounded-3xl shadow-lg p-8">
+
+            <MapPin className="text-red-500 mb-5" size={34} />
+
+            <h2 className="text-2xl font-bold mb-4">
+              Nearby Pharmacies
+            </h2>
+
+            <p className="text-slate-600 leading-8">
+              Running low on a medicine? Find nearby pharmacies with
+              directions and a call button in one tap. We&apos;re upfront that
+              no service can show live stock — always call ahead to confirm.
+            </p>
 
           </div>
 
