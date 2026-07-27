@@ -1,0 +1,102 @@
+import { NextResponse } from "next/server";
+
+type PlaceResult = {
+  place_id: string;
+  name: string;
+  vicinity?: string;
+  rating?: number;
+  user_ratings_total?: number;
+  business_status?: string;
+  opening_hours?: { open_now?: boolean };
+  geometry: { location: { lat: number; lng: number } };
+};
+
+// Haversine distance in kilometers
+const distanceKm = (
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+) => {
+  const R = 6371;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+};
+
+export async function GET(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const lat = parseFloat(searchParams.get("lat") || "");
+    const lng = parseFloat(searchParams.get("lng") || "");
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return NextResponse.json(
+        { success: false, error: "Location coordinates are required." },
+        { status: 400 }
+      );
+    }
+
+    const apiKey = process.env.GOOGLE_MAPS_API_KEY?.trim();
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Pharmacy search is not configured. Please set GOOGLE_MAPS_API_KEY.",
+        },
+        { status: 500 }
+      );
+    }
+
+    const radiusMeters = 5000;
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${lat},${lng}&radius=${radiusMeters}&type=pharmacy&key=${apiKey}`;
+
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.status !== "OK" && data.status !== "ZERO_RESULTS") {
+      console.error("Places API error:", data.status, data.error_message);
+      return NextResponse.json(
+        { success: false, error: "Couldn't load nearby pharmacies right now." },
+        { status: 500 }
+      );
+    }
+
+    const results: PlaceResult[] = data.results || [];
+
+    const pharmacies = results
+      .map((place) => ({
+        placeId: place.place_id,
+        name: place.name,
+        address: place.vicinity || "",
+        rating: place.rating ?? null,
+        totalRatings: place.user_ratings_total ?? 0,
+        openNow: place.opening_hours?.open_now ?? null,
+        lat: place.geometry.location.lat,
+        lng: place.geometry.location.lng,
+        distanceKm: distanceKm(
+          lat,
+          lng,
+          place.geometry.location.lat,
+          place.geometry.location.lng
+        ),
+      }))
+      .sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return NextResponse.json({ success: true, pharmacies });
+  } catch (err) {
+    console.error("Nearby pharmacies error:", err);
+    return NextResponse.json(
+      { success: false, error: "Something went wrong. Please try again." },
+      { status: 500 }
+    );
+  }
+}

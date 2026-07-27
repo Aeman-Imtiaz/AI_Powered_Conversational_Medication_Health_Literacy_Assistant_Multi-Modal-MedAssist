@@ -36,6 +36,44 @@ const getDayLabel = (offsetDays: number) => {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 };
 
+// --- PDF color helpers ---
+type RGB = [number, number, number];
+
+const hexToRgb = (hex: string): RGB => {
+  const clean = hex.replace("#", "");
+  const bigint = parseInt(clean, 16);
+  return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
+};
+
+const PDF_COLORS = {
+  blue: hexToRgb("#2563EB"),
+  cyan: hexToRgb("#06B6D4"),
+  green: hexToRgb("#10B981"),
+  amber: hexToRgb("#FBBF24"),
+  red: hexToRgb("#F87171"),
+  redLight: hexToRgb("#FCA5A5"),
+  slate900: hexToRgb("#0F172A"),
+  slate500: hexToRgb("#64748B"),
+  slate400: hexToRgb("#94A3B8"),
+  slate100: hexToRgb("#F1F5F9"),
+  slateBg: hexToRgb("#F8FAFC"),
+  summaryBg: hexToRgb("#EFF6FF"),
+  white: [255, 255, 255] as RGB,
+};
+
+const barColor = (pct: number): RGB => {
+  if (pct >= 80) return PDF_COLORS.blue;
+  if (pct >= 50) return PDF_COLORS.amber;
+  if (pct > 0) return PDF_COLORS.redLight;
+  return PDF_COLORS.slate100;
+};
+
+const medColor = (pct: number): RGB => {
+  if (pct >= 80) return PDF_COLORS.green;
+  if (pct >= 50) return PDF_COLORS.amber;
+  return PDF_COLORS.red;
+};
+
 export default function ReportsPage() {
   const { user } = useAuth();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
@@ -49,7 +87,6 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!user) {
-
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMedicines([]);
       setLog({});
@@ -89,6 +126,18 @@ export default function ReportsPage() {
       ? Math.round(last7Days.reduce((sum, day) => sum + day.percentage, 0) / 7)
       : 0;
 
+  const perMedicineStats = medicines.map((med) => {
+    let takenDays = 0;
+    for (let offset = 0; offset < 7; offset++) {
+      const dateKey = getDateKey(offset);
+      if ((log[dateKey] || []).includes(med.id)) takenDays++;
+    }
+    return {
+      name: med.name,
+      percentage: Math.round((takenDays / 7) * 100),
+    };
+  }).sort((a, b) => a.percentage - b.percentage);
+
   const generateSummary = useCallback(async () => {
     if (totalMeds === 0) return;
     setSummaryLoading(true);
@@ -122,27 +171,183 @@ export default function ReportsPage() {
 
   const downloadPDF = () => {
     const pdf = new jsPDF();
-    pdf.setFontSize(18);
-    pdf.text("MedAssist — Weekly Report", 14, 20);
-    pdf.setFontSize(11);
-    pdf.text(`Weekly Adherence: ${weekAverage}%`, 14, 32);
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const marginX = 14;
+    const contentWidth = pageWidth - marginX * 2;
+    const c = PDF_COLORS;
 
-    let y = 44;
-    pdf.setFontSize(13);
-    pdf.text("Daily Breakdown", 14, y);
-    pdf.setFontSize(10);
-    last7Days.forEach((day) => {
-      y += 7;
-      pdf.text(`${day.label}: ${day.percentage}% (${day.taken}/${totalMeds} taken)`, 14, y);
+    const ensureSpace = (currentY: number, needed: number) => {
+      if (currentY + needed > pageHeight - 20) {
+        pdf.addPage();
+        return 20;
+      }
+      return currentY;
+    };
+
+    // --- Header banner ---
+    pdf.setFillColor(...c.blue);
+    pdf.rect(0, 0, pageWidth, 38, "F");
+
+    pdf.setTextColor(...c.white);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(20);
+    pdf.text("MedAssist", marginX, 18);
+
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(11);
+    pdf.text("Weekly Adherence Report", marginX, 27);
+
+    pdf.setFontSize(9);
+    pdf.text(
+      new Date().toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      marginX,
+      34
+    );
+
+    let y = 52;
+
+    // --- Weekly Adherence summary card ---
+    pdf.setFillColor(...c.slateBg);
+    pdf.roundedRect(marginX, y, contentWidth, 30, 3, 3, "F");
+
+    pdf.setTextColor(...c.slate500);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.text("WEEKLY ADHERENCE", marginX + 8, y + 10);
+
+    pdf.setTextColor(...c.slate900);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(22);
+    pdf.text(`${weekAverage}%`, marginX + 8, y + 21);
+
+    pdf.setTextColor(...c.slate400);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(8);
+    pdf.text("Last 7 days", marginX + 8, y + 26);
+
+    // mini progress bar (right side of card)
+    const barW = 60;
+    const barX = marginX + contentWidth - barW - 8;
+    const barY = y + 14;
+    pdf.setFillColor(...c.slate100);
+    pdf.roundedRect(barX, barY, barW, 5, 2, 2, "F");
+    pdf.setFillColor(...barColor(weekAverage));
+    pdf.roundedRect(barX, barY, (barW * Math.min(weekAverage, 100)) / 100, 5, 2, 2, "F");
+
+    y += 42;
+
+    // --- Daily Adherence bar chart ---
+    pdf.setTextColor(...c.slate900);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.text("Daily Adherence", marginX, y);
+    y += 10;
+
+    const chartHeight = 32;
+    const chartTop = y;
+    const barGap = 4;
+    const barWidth = (contentWidth - barGap * (last7Days.length - 1)) / last7Days.length;
+
+    last7Days.forEach((day, i) => {
+      const x = marginX + i * (barWidth + barGap);
+      const h = Math.max((day.percentage / 100) * chartHeight, 2);
+      const color = barColor(day.percentage);
+
+      // background track
+      pdf.setFillColor(...c.slate100);
+      pdf.roundedRect(x, chartTop, barWidth, chartHeight, 1, 1, "F");
+
+      // value bar (bottom-aligned)
+      pdf.setFillColor(...color);
+      pdf.roundedRect(x, chartTop + (chartHeight - h), barWidth, h, 1, 1, "F");
+
+      // percentage above bar
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.setTextColor(...c.slate500);
+      pdf.text(`${day.percentage}%`, x + barWidth / 2, chartTop - 2, { align: "center" });
+
+      // day label below bar
+      pdf.setFontSize(8);
+      pdf.setTextColor(...c.slate400);
+      pdf.text(day.label, x + barWidth / 2, chartTop + chartHeight + 6, { align: "center" });
     });
 
+    y = chartTop + chartHeight + 18;
+
+    // --- Per-Medicine Adherence ---
+    y = ensureSpace(y, 16);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(12);
+    pdf.setTextColor(...c.slate900);
+    pdf.text("Per-Medicine Adherence", marginX, y);
+    y += 9;
+
+    perMedicineStats.forEach((med) => {
+      y = ensureSpace(y, 14);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(...c.slate500);
+      pdf.text(med.name, marginX, y);
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setTextColor(...medColor(med.percentage));
+      pdf.text(`${med.percentage}%`, marginX + contentWidth, y, { align: "right" });
+
+      y += 3;
+      pdf.setFillColor(...c.slate100);
+      pdf.roundedRect(marginX, y, contentWidth, 3, 1.5, 1.5, "F");
+      pdf.setFillColor(...medColor(med.percentage));
+      pdf.roundedRect(marginX, y, (contentWidth * med.percentage) / 100, 3, 1.5, 1.5, "F");
+
+      y += 11;
+    });
+
+    // --- AI Summary ---
     if (summary) {
-      y += 12;
-      pdf.setFontSize(13);
-      pdf.text("AI Summary", 14, y);
-      pdf.setFontSize(10);
-      const lines = pdf.splitTextToSize(summary, 180);
-      pdf.text(lines, 14, y + 8);
+      const lines: string[] = pdf.splitTextToSize(summary, contentWidth - 16);
+      const boxHeight = lines.length * 5 + 20;
+
+      y = ensureSpace(y + 4, boxHeight);
+
+      pdf.setFillColor(...c.summaryBg);
+      pdf.roundedRect(marginX, y, contentWidth, boxHeight, 3, 3, "F");
+
+      pdf.setFont("helvetica", "bold");
+      pdf.setFontSize(11);
+      pdf.setTextColor(...c.blue);
+      pdf.text("AI Summary", marginX + 8, y + 10);
+
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(9);
+      pdf.setTextColor(...c.slate500);
+      pdf.text(lines, marginX + 8, y + 18);
+
+      y += boxHeight + 10;
+    }
+
+    // --- Footer disclaimer on every page ---
+    const pageCount = pdf.internal.pages.length - 1;
+    for (let p = 1; p <= pageCount; p++) {
+      pdf.setPage(p);
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.setTextColor(...c.slate400);
+      pdf.text(
+        "MedAssist provides educational information only and is not a substitute for professional medical advice.",
+        pageWidth / 2,
+        pageHeight - 10,
+        { align: "center" }
+      );
+      pdf.text(`Page ${p} of ${pageCount}`, pageWidth - marginX, pageHeight - 10, {
+        align: "right",
+      });
     }
 
     pdf.save("medassist-weekly-report.pdf");
@@ -154,11 +359,12 @@ export default function ReportsPage() {
     const body = encodeURIComponent(
       `Hi,\n\nHere is a summary of my weekly medication adherence: ${weekAverage}%.\n\n${summary || ""}\n\n(Please attach the PDF that was just downloaded to your device before sending.)`
     );
+    // eslint-disable-next-line react-hooks/immutability
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 py-10 pb-28 gap-5">
+    <main className="relative flex-1 bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 pt-10 gap-5">
       <FloatingBlob color="#14B8A6" size={340} top="-100px" left="-100px" />
       <FloatingBlob color="#2563EB" size={280} bottom="60px" right="-100px" delay={2} />
 
@@ -166,7 +372,7 @@ export default function ReportsPage() {
         initial={{ opacity: 0, y: -12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative w-full max-w-md z-10"
+        className="relative w-full max-w-2xl z-10"
       >
         <div className="flex items-center gap-2">
           <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#14B8A6] to-[#2563EB] flex items-center justify-center shadow-sm">
@@ -182,7 +388,7 @@ export default function ReportsPage() {
       </motion.div>
 
       {!loaded ? null : totalMeds === 0 ? (
-        <div className="relative w-full max-w-md flex flex-col items-center text-center gap-3 py-14 z-10">
+        <div className="relative w-full max-w-2xl flex flex-col items-center text-center gap-3 py-14 z-10">
           <div className="w-14 h-14 rounded-full bg-[#14B8A6]/10 flex items-center justify-center">
             <TrendingUp size={26} className="text-[#14B8A6]" />
           </div>
@@ -193,7 +399,7 @@ export default function ReportsPage() {
         </div>
       ) : (
         <>
-          <GlassCard delay={0.05} hover={false} className="relative w-full max-w-md p-5 flex items-center justify-between z-10">
+          <GlassCard delay={0.05} hover={false} className="relative w-full max-w-2xl p-5 flex items-center justify-between z-10">
             <div>
               <p className="text-xs text-slate-400 uppercase tracking-wide">
                 Weekly Adherence
@@ -206,7 +412,7 @@ export default function ReportsPage() {
             <ProgressRing percentage={weekAverage} size={80} color="#2563EB" />
           </GlassCard>
 
-          <GlassCard delay={0.1} hover={false} className="relative w-full max-w-md p-5 z-10">
+          <GlassCard delay={0.1} hover={false} className="relative w-full max-w-2xl p-5 z-10">
             <h2 className="text-sm font-semibold text-slate-700 mb-4">
               Daily Adherence
             </h2>
@@ -235,12 +441,51 @@ export default function ReportsPage() {
             </div>
           </GlassCard>
 
-          <GlassCard delay={0.15} hover={false} className="relative w-full max-w-md p-5 flex flex-col gap-3 z-10">
+          <GlassCard delay={0.12} hover={false} className="relative w-full max-w-2xl p-5 z-10">
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">
+              Per-Medicine Adherence
+            </h2>
+            <div className="flex flex-col gap-3">
+              {perMedicineStats.map((med) => (
+                <div key={med.name}>
+                  <div className="flex items-center justify-between text-xs mb-1">
+                    <span className="text-slate-600 font-medium">{med.name}</span>
+                    <span
+                      className={
+                        med.percentage >= 80
+                          ? "text-[#10B981] font-semibold"
+                          : med.percentage >= 50
+                          ? "text-amber-600 font-semibold"
+                          : "text-red-500 font-semibold"
+                      }
+                    >
+                      {med.percentage}%
+                    </span>
+                  </div>
+                  <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        med.percentage >= 80
+                          ? "bg-[#10B981]"
+                          : med.percentage >= 50
+                          ? "bg-amber-400"
+                          : "bg-red-400"
+                      }`}
+                      style={{ width: `${med.percentage}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+
+          <GlassCard delay={0.15} hover={false} className="relative w-full max-w-2xl p-5 flex flex-col gap-3 z-10">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <Sparkles size={15} className="text-[#2563EB]" />
                 AI Summary
               </h2>
+
               <button
                 onClick={generateSummary}
                 disabled={summaryLoading}

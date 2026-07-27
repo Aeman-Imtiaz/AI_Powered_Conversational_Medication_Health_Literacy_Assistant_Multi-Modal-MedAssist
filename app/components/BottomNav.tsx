@@ -3,13 +3,24 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { MessageCircle, Pill, ChartColumn, Settings } from "lucide-react";
+import {
+  MessageCircle,
+  Pill,
+  ChartColumn,
+  Settings,
+  Info,
+  Shield,
+  Contact,
+} from "lucide-react";
 
 const tabs = [
   { href: "/chat", label: "Chat", icon: MessageCircle },
   { href: "/medications", label: "Medicines", icon: Pill },
   { href: "/reports", label: "Reports", icon: ChartColumn },
   { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/about", label: "About", icon: Info },
+  { href: "/privacy", label: "Privacy", icon: Shield },
+  { href: "/contact", label: "Contact Us", icon: Contact },
 ];
 
 export default function BottomNav() {
@@ -21,8 +32,8 @@ export default function BottomNav() {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-slate-200/70 z-50">
-<div className="max-w-2xl mx-auto flex items-stretch justify-around">
-          {tabs.map(({ href, label, icon: Icon }) => {
+      <div className="max-w-2xl mx-auto flex items-stretch justify-around">
+        {tabs.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <Link

@@ -66,14 +66,13 @@ export async function POST(req: Request) {
         : "SIMPLE MODE (STRICT): For each medicine, give ONLY a one-line plain-language purpose (e.g. 'Panadol — for pain and fever'). Do NOT explain mechanism of action, do NOT use medical/scientific terms. Maximum 2 short sentences of safety notes at the end, not a detailed breakdown per medicine. If asked to explain the whole list, respond as a short bullet list, one line per medicine, nothing more.";
     const medicationContext =
       medications && medications.length > 0
-        ? `\n\nUSER'S CURRENT MEDICATIONS:\n${medications
+        ? `\n\nUSER'S CURRENT MEDICATIONS (with today's status):\n${medications
             .map(
-              (med: { name: string; dosage: string; frequency: string }) =>
-                `- ${med.name}: ${med.dosage}, ${med.frequency}`
+              (med: { name: string; dosage: string; frequency: string; takenToday?: boolean }) =>
+                `- ${med.name}: ${med.dosage}, ${med.frequency} — ${med.takenToday ? "TAKEN today" : "NOT taken yet today"}`
             )
             .join("\n")}`
         : "";
-
     const profileContext =
       profile && (profile.age || profile.conditions || profile.allergies || profile.notes)
         ? `\n\nUSER'S PROFILE (use this to personalize and make suggestions more relevant and safe, but never state it back verbatim unless asked):
@@ -102,7 +101,11 @@ YOUR RULES:
    Tell them clearly: this is a medical emergency, do not wait for symptoms, go to the nearest hospital emergency room immediately, or call one of the numbers above right now. Never invent, guess, or use any other helpline number — only use the two listed above.
 4. Never guarantee that a specific dose is "safe" for someone — always use words like "generally" or "typically" and refer them to a professional.
 5. If a question is outside your scope (e.g. surgery, diagnosis, or treatment of an unrelated medical condition), clearly state that this is beyond your scope and recommend seeing a doctor.
+5b. NEVER combine the user's profile information (age, existing conditions) with described symptoms to suggest what condition they might have or offer a diagnosis. If a user describes symptoms, acknowledge them briefly and redirect to a doctor — do not speculate about causes, even in general terms, even if their profile makes a certain explanation seem likely.
 6. Avoid complex medical terms, or explain them simply if used.
+9. Match your response length and structure to the question's complexity. For simple, direct questions (e.g. "kya main ye le sakta hoon?", "haan ya na"), give a short, direct, conversational answer — do not force a full structured breakdown with headers or bullet lists every time. Reserve detailed, structured explanations for when the user actually asks for a full explanation, a list of medicines, or an overview. Vary your phrasing naturally rather than repeating the same sentence structures across responses.
+10. You DO have access to today's medication status for each medicine in the user's list (marked as "TAKEN today" or "NOT taken yet today" in the medication list below). When the user asks how many medicines they've taken today, which ones, or similar questions, answer directly using this data — do not claim you lack tracking or a live record. Only say you can't answer if the medication list itself is empty.
+
 7. You have access to the user's medication list below, if provided. Reference it when relevant, and ground any claim about their specific medications only in this list — never invent drug interactions, dosages, or side effects not present in it.
 8. When summarizing extracted prescription data, explicitly state your confidence level and ask the user to confirm or correct it before saving.${medicationContext}${profileContext}`,
 

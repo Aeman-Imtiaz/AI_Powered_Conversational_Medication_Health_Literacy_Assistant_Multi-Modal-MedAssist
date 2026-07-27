@@ -18,10 +18,13 @@ import {
   Bell,
   Info,
   User,
+  Moon,
+  Sun,
 } from "lucide-react";
 import { doc, getDoc, setDoc, deleteField, arrayUnion, arrayRemove } from "firebase/firestore";
 import { db, auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
+import { useTheme } from "../context/ThemeContext";
 import GlassCard from "../components/GlassCard";
 import Footer from "../components/Footer";
 import FloatingBlob from "../components/FloatingBlob";
@@ -43,7 +46,8 @@ const defaultSettings: Settings = {
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const router = useRouter();
+  const { theme, toggleTheme } = useTheme();
+  const router = useRouter(); 
   const [settings, setSettings] = useState<Settings>(defaultSettings);
   const [loaded, setLoaded] = useState(false);
   const [showAddCaregiver, setShowAddCaregiver] = useState(false);
@@ -145,8 +149,8 @@ export default function SettingsPage() {
   };
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 py-10 pb-28 gap-5">
-      <FloatingBlob color="#2563EB" size={320} top="-80px" left="-100px" />
+    <main className="relative flex-1 bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 pt-10 gap-5">
+          <FloatingBlob color="#2563EB" size={320} top="-80px" left="-100px" />
       <FloatingBlob color="#14B8A6" size={280} top="200px" right="-100px" delay={2} />
 
       <motion.div
@@ -200,6 +204,36 @@ export default function SettingsPage() {
           <ChevronRight size={16} className="text-slate-300" />
         </GlassCard>
       </Link>
+
+      <GlassCard delay={0.19} hover={false} className="relative w-full max-w-2xl p-4 z-10">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {theme === "dark" ? (
+              <Moon size={16} className="text-[#2563EB]" />
+            ) : (
+              <Sun size={16} className="text-[#2563EB]" />
+            )}
+            <h2 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              Appearance
+            </h2>
+          </div>
+          <button
+            onClick={toggleTheme}
+            className={`relative w-11 h-6 rounded-full transition-colors ${
+              theme === "dark" ? "bg-[#2563EB]" : "bg-slate-200"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                theme === "dark" ? "translate-x-5" : "translate-x-0"
+              }`}
+            />
+          </button>
+        </div>
+        <p className="text-xs text-slate-400 mt-2">
+          {theme === "dark" ? "Dark mode is on" : "Switch to dark mode"}
+        </p>
+      </GlassCard>
 
       <GlassCard delay={0.2} hover={false} className="relative w-full max-w-2xl p-4 z-10">
         <div className="flex items-center gap-2 mb-3">

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import BottomNav from "./components/BottomNav";
 import { AuthProvider } from "./context/AuthContext";
+import { ThemeProvider } from "./context/ThemeContext";
 import RouteGuard from "./components/RouteGuard";
 
 const geistSans = Geist({
@@ -32,10 +33,12 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col pb-16">
         <AuthProvider>
-          <RouteGuard>
-            {children}
-            <BottomNav />
-          </RouteGuard>
+          <ThemeProvider>
+            <RouteGuard>
+              {children}
+              <BottomNav />
+            </RouteGuard>
+          </ThemeProvider>
         </AuthProvider>
       </body>
     </html>

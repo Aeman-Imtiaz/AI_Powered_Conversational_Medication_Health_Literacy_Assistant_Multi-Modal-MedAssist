@@ -4,6 +4,7 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import { MessageCircle, Camera, Bell, Sparkles } from "lucide-react";
 import Navbar from "./components/Navbar";
+import Footer from "./components/Footer";
 
 const fadeUp = {
   hidden: { opacity: 0, y: 24 },
@@ -40,26 +41,24 @@ export default function WelcomePage() {
             <Sparkles size={13} className="text-[#2563EB]" />
             AI-powered medication companion
           </motion.div>
+<motion.h1
+  initial="hidden"
+  animate="visible"
+  custom={1}
+  variants={fadeUp}
+  className="text-4xl md:text-6xl font-black leading-tight tracking-tight text-slate-900"
+>
+  Understand your{" "}
+  <span className="bg-gradient-to-r from-[#2563EB] to-[#06B6D4] bg-clip-text text-transparent">
+    medicines,
+  </span>
+  <br />
+  never miss a{" "}
+  <span className="bg-gradient-to-r from-[#2563EB] to-[#06B6D4] bg-clip-text text-transparent">
+    Dose.
+  </span>
+</motion.h1>
 
-          <motion.h1
-            initial="hidden"
-            animate="visible"
-            custom={1}
-            variants={fadeUp}
-            className="text-5xl md:text-6xl font-extrabold text-slate-900 leading-[1.05] tracking-tight"
-          >
-            Understand your
- 
-m
-            <br />
-            medicines,
-            <br />
-            <span className="bg-gradient-to-r from-[#2563EB] to-[#06B6D4] bg-clip-text text-transparent">
-              never miss a 
-            </span>
-            <br />
-            Dose.
-          </motion.h1>
 
           <motion.p
             initial="hidden"
@@ -288,7 +287,7 @@ m
             How It Works
           </span>
           <h2 className="text-3xl md:text-4xl font-extrabold text-slate-900 mt-3 tracking-tight">
-            Panch aasan steps
+            5 Easy Steps.
           </h2>
         </motion.div>
 
@@ -532,91 +531,7 @@ m
         </motion.div>
       </section>
 
-      {/* Footer */}
-      <footer className="relative border-t border-slate-100 bg-white/60 backdrop-blur">
-        <div className="max-w-6xl mx-auto px-6 py-12">
-          <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#2563EB] to-[#06B6D4] flex items-center justify-center text-white text-xs font-bold">
-                  M
-                </div>
-                <span className="font-bold text-slate-900">MedAssist</span>
-              </div>
-              <p className="text-xs text-slate-400 leading-relaxed">
-                AI-powered medication companion for families in Pakistan.
-              </p>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-700 mb-3">
-                Product
-              </p>
-              <div className="flex flex-col gap-2 text-xs text-slate-500">
-                <Link href="#features" className="hover:text-[#2563EB]">
-                  Features
-                </Link>
-                <Link href="/login" className="hover:text-[#2563EB]">
-                  AI Chat
-                </Link>
-                <Link href="/medications" className="hover:text-[#2563EB]">
-                  Medications
-                </Link>
-                <Link href="/reports" className="hover:text-[#2563EB]">
-                  Reports
-                </Link>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-700 mb-3">
-                Company
-              </p>
-              <div className="flex flex-col gap-2 text-xs text-slate-500">
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  About
-                </span>
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  Privacy Policy
-                </span>
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  Terms
-                </span>
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  Contact
-                </span>
-              </div>
-            </div>
-
-            <div>
-              <p className="text-sm font-semibold text-slate-700 mb-3">
-                Connect
-              </p>
-              <div className="flex flex-col gap-2 text-xs text-slate-500">
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  Email
-                </span>
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  LinkedIn
-                </span>
-                <span className="hover:text-[#2563EB] cursor-pointer">
-                  GitHub
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-100 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-            <p className="text-xs text-slate-400">
-              © {new Date().getFullYear()} MedAssist. All rights reserved.
-            </p>
-            <p className="text-xs text-slate-400 text-center sm:text-right max-w-md">
-              ⚠ MedAssist provides educational information only and is not a
-              substitute for professional medical advice.
-            </p>
-          </div>
-        </div>
-      </footer>
+      <Footer/>
     </main>
   );
 }

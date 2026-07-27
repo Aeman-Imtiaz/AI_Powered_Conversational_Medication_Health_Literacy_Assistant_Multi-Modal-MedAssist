@@ -11,7 +11,8 @@ import {
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
-import { auth } from "../lib/firebase";
+import { auth, db } from "../lib/firebase";
+import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import FloatingBlob from "../components/FloatingBlob";
 
 function mapAuthError(code: string): string {
@@ -52,6 +53,17 @@ export default function LoginPage() {
         if (name.trim()) {
           await updateProfile(cred.user, { displayName: name.trim() });
         }
+        await setDoc(doc(db, "users", cred.user.uid), {
+  uid: cred.user.uid,
+  name: name.trim(),
+  email: cred.user.email,
+  premium: false,
+  trialActive: true,
+  language: "English",
+  literacyLevel: "Simple",
+  createdAt: serverTimestamp(),
+});
+
       } else {
         await signInWithEmailAndPassword(auth, email, password);
       }
@@ -79,8 +91,8 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center justify-center px-6 py-12">
-      <FloatingBlob color="#2563EB" size={340} top="-100px" left="-100px" />
+     <main className="relative flex-1 bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 pt-10 gap-5">
+        <FloatingBlob color="#2563EB" size={340} top="-100px" left="-100px" />
       <FloatingBlob color="#06B6D4" size={300} bottom="-100px" right="-100px" delay={2} />
 
       <motion.div

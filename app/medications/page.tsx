@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb } from "lucide-react";
+import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb, MapPin } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -190,7 +190,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
     medicines.length > 0 ? Math.round((takenCount / medicines.length) * 100) : 0;
 
   return (
-    <main className="relative min-h-screen bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 py-10 pb-28 gap-5">
+    <main className="relative flex-1 bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 pt-10 gap-5">
       <FloatingBlob color="#2563EB" size={340} top="-100px" right="-120px" />
       <FloatingBlob color="#14B8A6" size={280} bottom="100px" left="-100px" delay={2} />
 
@@ -213,6 +213,17 @@ const [editingId, setEditingId] = useState<string | null>(null);
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <Link href="/pharmacy">
+              <motion.span
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-11 h-11 rounded-2xl bg-white border border-slate-200 text-[#2563EB] flex items-center justify-center shadow-sm shrink-0"
+                aria-label="Find nearby pharmacy"
+                title="Find nearby pharmacy"
+              >
+                <MapPin size={19} />
+              </motion.span>
+            </Link>
             <Link href="/prescription">
               <motion.span
                 whileHover={{ scale: 1.05 }}
@@ -324,6 +335,19 @@ const [editingId, setEditingId] = useState<string | null>(null);
               >
                 {editingId ? "Save Changes" : "Save Medicine"}
               </motion.button>
+
+              {name.trim() && (
+                <Link href={`/pharmacy?medicine=${encodeURIComponent(name.trim())}`}>
+                  <motion.span
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="w-full flex items-center justify-center gap-2 text-xs font-medium text-[#2563EB] border border-[#2563EB]/30 rounded-xl py-2.5 hover:bg-[#2563EB]/5 transition"
+                  >
+                    <MapPin size={14} />
+                    Find Nearby Pharmacy for {name.trim()}
+                  </motion.span>
+                </Link>
+              )}
             </GlassCard>
           </motion.div>
         )}
@@ -387,6 +411,14 @@ const [editingId, setEditingId] = useState<string | null>(null);
                     </div>
 
                     <div className="flex items-center gap-1 shrink-0">
+                      <Link href={`/pharmacy?medicine=${encodeURIComponent(med.name)}`}>
+                        <span
+                          className="text-slate-300 hover:text-[#2563EB] transition-colors p-1 inline-flex"
+                          title="Find nearby pharmacy"
+                        >
+                          <MapPin size={16} />
+                        </span>
+                      </Link>
                       <button
                         onClick={() => startEdit(med)}
                         className="text-slate-300 hover:text-[#2563EB] transition-colors p-1"
