@@ -141,9 +141,10 @@ function NearbyPharmacyContent() {
       <div className="relative w-full max-w-2xl bg-amber-50/90 backdrop-blur border border-amber-200 text-amber-800 text-xs px-4 py-3 rounded-2xl z-10">
         ⚠️ We can&apos;t see live medicine stock at these pharmacies — no
         service in Pakistan currently provides that. Call ahead to confirm
-        before heading over.
+        before heading over. Results are based on community map data, so a
+        very local pharmacy near you may sometimes be missing.
       </div>
-
+      
       {/* Medicine name (used to prefill the ask when calling) */}
       <div className="relative w-full max-w-2xl flex items-center gap-2 z-10">
         <div className="flex-1 flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3.5 py-2.5">

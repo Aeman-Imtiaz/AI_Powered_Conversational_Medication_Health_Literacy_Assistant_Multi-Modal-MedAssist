@@ -93,28 +93,35 @@ export async function GET(req: Request) {
 out center;
 `;
 
-    let result: OverpassResponse | null = null;
-
-    for (const server of OVERPASS_SERVERS) {
+    const fetchWithTimeout = async (server: string) => {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 6000);
       try {
         const response = await fetch(
           `${server}?data=${encodeURIComponent(query)}`,
           {
             method: "GET",
-            headers: {
-              "User-Agent": "MedicineFinderApp/1.0",
-            },
+            headers: { "User-Agent": "MedicineFinderApp/1.0" },
             cache: "no-store",
+            signal: controller.signal,
           }
         );
-
-        if (response.ok) {
-          result = await response.json();
-          break;
-        }
-      } catch {
-        console.log("Overpass failed:", server);
+        clearTimeout(timeoutId);
+        if (!response.ok) throw new Error("Bad response");
+        return (await response.json()) as OverpassResponse;
+      } catch (err) {
+        clearTimeout(timeoutId);
+        throw err;
       }
+    };
+
+    let result: OverpassResponse | null = null;
+
+    try {
+      // Saare servers ko ek sath try karein, jo pehle jawab de wahi use karein
+      result = await Promise.any(OVERPASS_SERVERS.map(fetchWithTimeout));
+    } catch {
+      result = null;
     }
 
     if (!result) {
