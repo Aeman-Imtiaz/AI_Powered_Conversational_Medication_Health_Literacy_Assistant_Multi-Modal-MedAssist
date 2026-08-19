@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import ReactMarkdown from "react-markdown";
 import { Pill, Send, Sparkles, Mic, Square, Volume2, VolumeX } from "lucide-react";
 import GlassCard from "../components/GlassCard";
-import Footer from "../components/Footer";
+
 import FloatingBlob from "../components/FloatingBlob";
 import { useAuth } from "../context/AuthContext";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -573,7 +573,7 @@ export default function ChatPage() {
         </motion.button>
       </motion.div>
 
-      <Footer />
+      
     </main>
   );
 }

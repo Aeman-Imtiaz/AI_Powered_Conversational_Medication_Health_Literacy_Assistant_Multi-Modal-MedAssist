@@ -27,7 +27,7 @@ import {
 } from "firebase/storage";
 
 import { db, storage } from "../lib/firebase";
-import Footer from "../components/Footer";
+
 
 export default function ContactPage() {
   const [loading, setLoading] = useState(false);
@@ -508,7 +508,7 @@ export default function ContactPage() {
 
       </section>
 
-      <Footer />
+
 
     </main>
   );

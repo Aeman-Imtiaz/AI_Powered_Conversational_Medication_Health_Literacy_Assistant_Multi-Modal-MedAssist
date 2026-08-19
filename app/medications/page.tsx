@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb, MapPin } from "lucide-react";
+import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb, FileText, MapPin } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
-import Footer from "../components/Footer";
+
 import ProgressRing from "../components/ProgressRing";
 import FloatingBlob from "../components/FloatingBlob";
 
@@ -18,6 +18,7 @@ type Medicine = {
   dosage: string;
   frequency: string;
   time: string;
+  createdAt?: string;
 };
 
 type AdherenceLog = {
@@ -160,6 +161,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
         dosage: dosage.trim(),
         frequency: frequency.trim(),
         time: time.trim(),
+        createdAt: new Date().toISOString(),
       };
       setMedicines((prev) => [...prev, newMed]);
     }
@@ -234,6 +236,17 @@ const [editingId, setEditingId] = useState<string | null>(null);
                 <Camera size={19} />
               </motion.span>
             </Link>
+            <Link href="/medical-reports">
+              <motion.span
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="w-11 h-11 rounded-2xl bg-white border border-slate-200 text-[#14B8A6] flex items-center justify-center shadow-sm shrink-0"
+                aria-label="Lab reports"
+              >
+                <FileText size={19} />
+              </motion.span>
+            </Link>
+
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -439,7 +452,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
           </AnimatePresence>
         </div>
       )}
-      <Footer />
+      
     </main>
   );
 }

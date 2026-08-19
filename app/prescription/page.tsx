@@ -10,7 +10,6 @@ import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import GlassCard from "../components/GlassCard";
 import FloatingBlob from "../components/FloatingBlob";
-import Footer from "../components/Footer";
 
 
 type Medicine = {
@@ -1065,7 +1064,7 @@ export default function PrescriptionPage() {
 
       >
 
-        <Footer />
+        
 
       </motion.div>
 

@@ -49,17 +49,30 @@ Respond ONLY in valid JSON, in this exact format, with no extra text, no markdow
 If the image is not a medicine/prescription at all, return an empty medicines array and explain in notes.`,
     });
 
-    const result = await model.generateContent([
-      {
-        inlineData: {
-          data: image,
-          mimeType: mimeType || "image/jpeg",
-        },
-      },
-      { text: "Extract the medicine details from this image." },
-    ]);
+    let rawText = "";
+    let lastError: unknown = null;
 
-    const rawText = result.response.text();
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        const result = await model.generateContent([
+          { inlineData: { data: image, mimeType: mimeType || "image/jpeg" } },
+          { text: "Extract the medicine details from this image." },
+        ]);
+        rawText = result.response.text();
+        lastError = null;
+        break;
+      } catch (err) {
+        lastError = err;
+        const isOverloaded = err instanceof Error && err.message.includes("503");
+        if (isOverloaded && attempt < 3) {
+          await new Promise((r) => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    if (lastError) throw lastError;
 
     // Gemini kabhi kabhi ```json fences add kar deta hai, unhein saaf karte hain
     const cleaned = rawText.replace(/```json|```/g, "").trim();
@@ -76,7 +89,12 @@ If the image is not a medicine/prescription at all, return an empty medicines ar
 
     return NextResponse.json({ success: true, data: parsed });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Something went wrong";
+    const message =
+      error instanceof Error && error.message.includes("503")
+        ? "Google's AI servers are busy right now. Please try again in a moment."
+        : error instanceof Error
+        ? error.message
+        : "Something went wrong";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
 }

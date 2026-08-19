@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { TrendingUp, Sparkles, ChartColumn, Download, Mail } from "lucide-react";
+import { TrendingUp, Sparkles, ChartColumn, Download, Mail, CalendarClock } from "lucide-react";
 import jsPDF from "jspdf";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -18,6 +18,7 @@ type Medicine = {
   dosage: string;
   frequency: string;
   time: string;
+  createdAt?: string;
 };
 
 type AdherenceLog = {
@@ -36,6 +37,9 @@ const getDayLabel = (offsetDays: number) => {
   return d.toLocaleDateString("en-US", { weekday: "short" });
 };
 
+const toDateKey = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
 // --- PDF color helpers ---
 type RGB = [number, number, number];
 
@@ -47,7 +51,6 @@ const hexToRgb = (hex: string): RGB => {
 
 const PDF_COLORS = {
   blue: hexToRgb("#2563EB"),
-  cyan: hexToRgb("#06B6D4"),
   green: hexToRgb("#10B981"),
   amber: hexToRgb("#FBBF24"),
   red: hexToRgb("#F87171"),
@@ -126,17 +129,61 @@ export default function ReportsPage() {
       ? Math.round(last7Days.reduce((sum, day) => sum + day.percentage, 0) / 7)
       : 0;
 
-  const perMedicineStats = medicines.map((med) => {
+  const perMedicineStats = medicines.map((med, index) => {
     let takenDays = 0;
     for (let offset = 0; offset < 7; offset++) {
       const dateKey = getDateKey(offset);
       if ((log[dateKey] || []).includes(med.id)) takenDays++;
     }
-    return {
-      name: med.name,
-      percentage: Math.round((takenDays / 7) * 100),
-    };
+    return { key: `${med.name}-${index}`, name: med.name, percentage: Math.round((takenDays / 7) * 100) };
   }).sort((a, b) => a.percentage - b.percentage);
+
+  // --- Full-duration history + GitHub-style heatmap, per medicine ---
+  const medicineHistories = medicines.map((med) => {
+    let startDate: Date;
+    if (med.createdAt) {
+      startDate = new Date(med.createdAt);
+    } else {
+      const datesWithMed = Object.keys(log).filter((d) => (log[d] || []).includes(med.id)).sort();
+      startDate = datesWithMed.length > 0 ? new Date(datesWithMed[0]) : new Date();
+    }
+    startDate.setHours(0, 0, 0, 0);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Align grid to the Sunday on/before startDate, GitHub-heatmap style
+    const gridStart = new Date(startDate);
+    gridStart.setDate(gridStart.getDate() - gridStart.getDay());
+
+    const totalCellDays = Math.ceil((today.getTime() - gridStart.getTime()) / 86400000) + 1;
+    const weeksCount = Math.max(1, Math.ceil(totalCellDays / 7));
+
+    const weeks: { dateKey: string; taken: boolean; inRange: boolean }[][] = [];
+    let takenCount = 0;
+    let totalDaysInRange = 0;
+
+    for (let w = 0; w < weeksCount; w++) {
+      const week: { dateKey: string; taken: boolean; inRange: boolean }[] = [];
+      for (let d = 0; d < 7; d++) {
+        const cellDate = new Date(gridStart);
+        cellDate.setDate(gridStart.getDate() + w * 7 + d);
+        const key = toDateKey(cellDate);
+        const inRange = cellDate >= startDate && cellDate <= today;
+        const taken = inRange && (log[key] || []).includes(med.id);
+        if (inRange) {
+          totalDaysInRange++;
+          if (taken) takenCount++;
+        }
+        week.push({ dateKey: key, taken, inRange });
+      }
+      weeks.push(week);
+    }
+
+    const overallPercentage = totalDaysInRange > 0 ? Math.round((takenCount / totalDaysInRange) * 100) : 0;
+
+    return { med, startDate, weeks, takenCount, totalDaysInRange, overallPercentage };
+  });
 
   const generateSummary = useCallback(async () => {
     if (totalMeds === 0) return;
@@ -185,52 +232,47 @@ export default function ReportsPage() {
       return currentY;
     };
 
-    // --- Header banner ---
+
     pdf.setFillColor(...c.blue);
     pdf.rect(0, 0, pageWidth, 38, "F");
-
+    
     pdf.setTextColor(...c.white);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(20);
     pdf.text("MedAssist", marginX, 18);
-
+   
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(11);
+    
+    
     pdf.text("Weekly Adherence Report", marginX, 27);
-
+    
     pdf.setFontSize(9);
     pdf.text(
-      new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-      marginX,
-      34
+      new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
+      marginX, 34
     );
 
     let y = 52;
 
-    // --- Weekly Adherence summary card ---
-    pdf.setFillColor(...c.slateBg);
-    pdf.roundedRect(marginX, y, contentWidth, 30, 3, 3, "F");
 
+    pdf.setFillColor(...c.slateBg);
+    
+    pdf.roundedRect(marginX, y, contentWidth, 30, 3, 3, "F");
+    
     pdf.setTextColor(...c.slate500);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.text("WEEKLY ADHERENCE", marginX + 8, y + 10);
-
     pdf.setTextColor(...c.slate900);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(22);
     pdf.text(`${weekAverage}%`, marginX + 8, y + 21);
-
     pdf.setTextColor(...c.slate400);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(8);
     pdf.text("Last 7 days", marginX + 8, y + 26);
 
-    // mini progress bar (right side of card)
     const barW = 60;
     const barX = marginX + contentWidth - barW - 8;
     const barY = y + 14;
@@ -241,7 +283,6 @@ export default function ReportsPage() {
 
     y += 42;
 
-    // --- Daily Adherence bar chart ---
     pdf.setTextColor(...c.slate900);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(12);
@@ -257,22 +298,14 @@ export default function ReportsPage() {
       const x = marginX + i * (barWidth + barGap);
       const h = Math.max((day.percentage / 100) * chartHeight, 2);
       const color = barColor(day.percentage);
-
-      // background track
       pdf.setFillColor(...c.slate100);
       pdf.roundedRect(x, chartTop, barWidth, chartHeight, 1, 1, "F");
-
-      // value bar (bottom-aligned)
       pdf.setFillColor(...color);
       pdf.roundedRect(x, chartTop + (chartHeight - h), barWidth, h, 1, 1, "F");
-
-      // percentage above bar
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
       pdf.setTextColor(...c.slate500);
       pdf.text(`${day.percentage}%`, x + barWidth / 2, chartTop - 2, { align: "center" });
-
-      // day label below bar
       pdf.setFontSize(8);
       pdf.setTextColor(...c.slate400);
       pdf.text(day.label, x + barWidth / 2, chartTop + chartHeight + 6, { align: "center" });
@@ -280,59 +313,60 @@ export default function ReportsPage() {
 
     y = chartTop + chartHeight + 18;
 
-    // --- Per-Medicine Adherence ---
     y = ensureSpace(y, 16);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(12);
     pdf.setTextColor(...c.slate900);
-    pdf.text("Per-Medicine Adherence", marginX, y);
+    pdf.text("Overall Adherence (Since Tracking Began)", marginX, y);
     y += 9;
 
-    perMedicineStats.forEach((med) => {
-      y = ensureSpace(y, 14);
+    medicineHistories.forEach(({ med, startDate, overallPercentage, takenCount, totalDaysInRange }) => {
+      y = ensureSpace(y, 16);
 
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(...c.slate500);
-      pdf.text(med.name, marginX, y);
+      pdf.text(
+        `${med.name} — since ${startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`,
+        marginX, y
+      );
 
       pdf.setFont("helvetica", "bold");
-      pdf.setTextColor(...medColor(med.percentage));
-      pdf.text(`${med.percentage}%`, marginX + contentWidth, y, { align: "right" });
+      pdf.setTextColor(...medColor(overallPercentage));
+      pdf.text(`${overallPercentage}%`, marginX + contentWidth, y, { align: "right" });
 
       y += 3;
       pdf.setFillColor(...c.slate100);
       pdf.roundedRect(marginX, y, contentWidth, 3, 1.5, 1.5, "F");
-      pdf.setFillColor(...medColor(med.percentage));
-      pdf.roundedRect(marginX, y, (contentWidth * med.percentage) / 100, 3, 1.5, 1.5, "F");
+      pdf.setFillColor(...medColor(overallPercentage));
+      pdf.roundedRect(marginX, y, (contentWidth * overallPercentage) / 100, 3, 1.5, 1.5, "F");
 
-      y += 11;
+      y += 5;
+      pdf.setFont("helvetica", "normal");
+      pdf.setFontSize(7);
+      pdf.setTextColor(...c.slate400);
+      pdf.text(`${takenCount} of ${totalDaysInRange} days taken`, marginX, y);
+
+      y += 9;
     });
 
-    // --- AI Summary ---
     if (summary) {
       const lines: string[] = pdf.splitTextToSize(summary, contentWidth - 16);
       const boxHeight = lines.length * 5 + 20;
-
       y = ensureSpace(y + 4, boxHeight);
-
       pdf.setFillColor(...c.summaryBg);
       pdf.roundedRect(marginX, y, contentWidth, boxHeight, 3, 3, "F");
-
       pdf.setFont("helvetica", "bold");
       pdf.setFontSize(11);
       pdf.setTextColor(...c.blue);
       pdf.text("AI Summary", marginX + 8, y + 10);
-
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(9);
       pdf.setTextColor(...c.slate500);
       pdf.text(lines, marginX + 8, y + 18);
-
       y += boxHeight + 10;
     }
 
-    // --- Footer disclaimer on every page ---
     const pageCount = pdf.internal.pages.length - 1;
     for (let p = 1; p <= pageCount; p++) {
       pdf.setPage(p);
@@ -341,13 +375,9 @@ export default function ReportsPage() {
       pdf.setTextColor(...c.slate400);
       pdf.text(
         "MedAssist provides educational information only and is not a substitute for professional medical advice.",
-        pageWidth / 2,
-        pageHeight - 10,
-        { align: "center" }
+        pageWidth / 2, pageHeight - 10, { align: "center" }
       );
-      pdf.text(`Page ${p} of ${pageCount}`, pageWidth - marginX, pageHeight - 10, {
-        align: "right",
-      });
+      pdf.text(`Page ${p} of ${pageCount}`, pageWidth - marginX, pageHeight - 10, { align: "right" });
     }
 
     pdf.save("medassist-weekly-report.pdf");
@@ -379,9 +409,7 @@ export default function ReportsPage() {
             <ChartColumn size={17} className="text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">
-              Weekly Report
-            </h1>
+            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">Weekly Report</h1>
             <p className="text-xs text-slate-400">Your medication journey</p>
           </div>
         </div>
@@ -393,29 +421,22 @@ export default function ReportsPage() {
             <TrendingUp size={26} className="text-[#14B8A6]" />
           </div>
           <p className="text-sm text-slate-400 max-w-55">
-            Add medicines and start marking them as taken to see your weekly
-            report here
+            Add medicines and start marking them as taken to see your weekly report here
           </p>
         </div>
       ) : (
         <>
           <GlassCard delay={0.05} hover={false} className="relative w-full max-w-2xl p-5 flex items-center justify-between z-10">
             <div>
-              <p className="text-xs text-slate-400 uppercase tracking-wide">
-                Weekly Adherence
-              </p>
-              <p className="text-3xl font-extrabold text-slate-900 mt-1">
-                {weekAverage}%
-              </p>
+              <p className="text-xs text-slate-400 uppercase tracking-wide">Weekly Adherence</p>
+              <p className="text-3xl font-extrabold text-slate-900 mt-1">{weekAverage}%</p>
               <p className="text-xs text-slate-400 mt-0.5">Last 7 days</p>
             </div>
             <ProgressRing percentage={weekAverage} size={80} color="#2563EB" />
           </GlassCard>
 
           <GlassCard delay={0.1} hover={false} className="relative w-full max-w-2xl p-5 z-10">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">
-              Daily Adherence
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">Daily Adherence (Last 7 Days)</h2>
             <div className="flex items-end justify-between gap-2 h-32">
               {last7Days.map((day, i) => (
                 <div key={i} className="flex-1 flex flex-col items-center gap-2">
@@ -425,13 +446,9 @@ export default function ReportsPage() {
                       animate={{ height: `${Math.max(day.percentage, 4)}%` }}
                       transition={{ duration: 0.7, delay: i * 0.08, ease: "easeOut" }}
                       className={`w-full rounded-md ${
-                        day.percentage >= 80
-                          ? "bg-[#2563EB]"
-                          : day.percentage >= 50
-                          ? "bg-amber-400"
-                          : day.percentage > 0
-                          ? "bg-red-300"
-                          : "bg-slate-100"
+                        day.percentage >= 80 ? "bg-[#2563EB]" :
+                        day.percentage >= 50 ? "bg-amber-400" :
+                        day.percentage > 0 ? "bg-red-300" : "bg-slate-100"
                       }`}
                     />
                   </div>
@@ -442,34 +459,24 @@ export default function ReportsPage() {
           </GlassCard>
 
           <GlassCard delay={0.12} hover={false} className="relative w-full max-w-2xl p-5 z-10">
-            <h2 className="text-sm font-semibold text-slate-700 mb-4">
-              Per-Medicine Adherence
-            </h2>
+            <h2 className="text-sm font-semibold text-slate-700 mb-4">This Week — Per Medicine</h2>
             <div className="flex flex-col gap-3">
               {perMedicineStats.map((med) => (
-                <div key={med.name}>
+                <div key={med.key}>
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="text-slate-600 font-medium">{med.name}</span>
-                    <span
-                      className={
-                        med.percentage >= 80
-                          ? "text-[#10B981] font-semibold"
-                          : med.percentage >= 50
-                          ? "text-amber-600 font-semibold"
-                          : "text-red-500 font-semibold"
-                      }
-                    >
+                    <span className={
+                      med.percentage >= 80 ? "text-[#10B981] font-semibold" :
+                      med.percentage >= 50 ? "text-amber-600 font-semibold" : "text-red-500 font-semibold"
+                    }>
                       {med.percentage}%
                     </span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full ${
-                        med.percentage >= 80
-                          ? "bg-[#10B981]"
-                          : med.percentage >= 50
-                          ? "bg-amber-400"
-                          : "bg-red-400"
+                        med.percentage >= 80 ? "bg-[#10B981]" :
+                        med.percentage >= 50 ? "bg-amber-400" : "bg-red-400"
                       }`}
                       style={{ width: `${med.percentage}%` }}
                     />
@@ -479,13 +486,70 @@ export default function ReportsPage() {
             </div>
           </GlassCard>
 
-          <GlassCard delay={0.15} hover={false} className="relative w-full max-w-2xl p-5 flex flex-col gap-3 z-10">
+          {/* --- NEW: Full-duration history + heatmap --- */}
+          <GlassCard delay={0.14} hover={false} className="relative w-full max-w-2xl p-5 z-10">
+            <div className="flex items-center gap-2 mb-4">
+              <CalendarClock size={15} className="text-[#2563EB]" />
+              <h2 className="text-sm font-semibold text-slate-700">Full History — Since You Started</h2>
+            </div>
+
+            <div className="flex flex-col gap-5">
+              {medicineHistories.map(({ med, startDate, weeks, overallPercentage, takenCount, totalDaysInRange }) => (
+                <div key={med.id}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{med.name}</p>
+                      <p className="text-[11px] text-slate-400">
+                        Since {startDate.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                        {" · "}{takenCount} of {totalDaysInRange} days
+                      </p>
+                    </div>
+                    <span className={`text-sm font-bold ${
+                      overallPercentage >= 80 ? "text-[#10B981]" :
+                      overallPercentage >= 50 ? "text-amber-600" : "text-red-500"
+                    }`}>
+                      {overallPercentage}%
+                    </span>
+                  </div>
+
+                  {/* GitHub-style heatmap */}
+                  <div className="overflow-x-auto pb-1 mt-2">
+                    <div className="flex gap-[3px] w-max">
+                      {weeks.map((week, wi) => (
+                        <div key={wi} className="flex flex-col gap-[3px]">
+                          {week.map((cell, di) => (
+                            <div
+                              key={di}
+                              title={cell.inRange ? `${cell.dateKey}${cell.taken ? " — taken" : " — missed"}` : ""}
+                              className={`w-[10px] h-[10px] rounded-[2px] ${
+                                !cell.inRange
+                                  ? "bg-transparent"
+                                  : cell.taken
+                                  ? "bg-[#2563EB]"
+                                  : "bg-red-200"
+                              }`}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-3 mt-4 text-[10px] text-slate-400">
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-[2px] bg-[#2563EB] inline-block" /> Taken</span>
+              <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-[2px] bg-red-200 inline-block" /> Missed</span>
+            </div>
+          </GlassCard>
+
+          <GlassCard delay={0.18} hover={false} className="relative w-full max-w-2xl p-5 flex flex-col gap-3 z-10">
             <div className="flex items-center justify-between">
               <h2 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <Sparkles size={15} className="text-[#2563EB]" />
                 AI Summary
               </h2>
-
               <button
                 onClick={generateSummary}
                 disabled={summaryLoading}

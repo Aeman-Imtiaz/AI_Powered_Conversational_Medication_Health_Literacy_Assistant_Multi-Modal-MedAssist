@@ -26,7 +26,7 @@ import { db, auth } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import GlassCard from "../components/GlassCard";
-import Footer from "../components/Footer";
+
 import FloatingBlob from "../components/FloatingBlob";
 import { signOut } from "firebase/auth";
 
@@ -444,7 +444,7 @@ export default function SettingsPage() {
         </GlassCard>
       )}
 
-      <Footer />
+      
     </main>
   );
 }
