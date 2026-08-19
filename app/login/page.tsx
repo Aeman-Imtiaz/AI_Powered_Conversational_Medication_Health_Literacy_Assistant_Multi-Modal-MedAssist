@@ -7,7 +7,9 @@ import Link from "next/link";
 import { Mail, Lock, User, ArrowRight } from "lucide-react";
 import {
   createUserWithEmailAndPassword,
+  GoogleAuthProvider,
   signInWithEmailAndPassword,
+  signInWithPopup,
   sendPasswordResetEmail,
   updateProfile,
 } from "firebase/auth";
@@ -41,6 +43,45 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setError(null);
+    setSubmitting(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      const cred = await signInWithPopup(auth, provider);
+
+      await setDoc(
+        doc(db, "users", cred.user.uid),
+        {
+          uid: cred.user.uid,
+          name: cred.user.displayName || "",
+          email: cred.user.email,
+          premium: false,
+          trialActive: true,
+          language: "English",
+          literacyLevel: "Simple",
+          createdAt: serverTimestamp(),
+        },
+        { merge: true }
+      );
+
+      router.push("/chat");
+    } catch (err) {
+      const code = err instanceof Error && "code" in err ? String((err as { code: string }).code) : "";
+      if (code === "auth/popup-closed-by-user") {
+        setError("Google sign-in was cancelled. Please try again.");
+      } else if (code === "auth/operation-not-allowed") {
+        setError("Google sign-in needs to be enabled in Firebase Authentication first.");
+      } else {
+        setError(mapAuthError(code));
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -224,6 +265,27 @@ export default function LoginPage() {
                 {submitting ? "Please wait..." : mode === "signin" ? "Sign In" : "Create Account"}
                 {!submitting && <ArrowRight size={16} />}
               </motion.button>
+
+              <div className="flex items-center gap-3 py-1">
+                <div className="h-px flex-1 bg-slate-200" />
+                <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">or</span>
+                <div className="h-px flex-1 bg-slate-200" />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleSignIn}
+                disabled={submitting}
+                className="w-full rounded-xl border border-slate-200 bg-white py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 flex items-center justify-center gap-2"
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24" className="h-5 w-5">
+                  <path fill="#4285F4" d="M21.35 12.27c0-.79-.07-1.55-.2-2.27H12v4.3h5.23a4.47 4.47 0 0 1-1.94 2.93v2.79h3.14c1.83-1.69 2.92-4.18 2.92-7.75Z" />
+                  <path fill="#34A853" d="M12 21.76c2.62 0 4.82-.87 6.43-2.36l-3.14-2.79c-.87.58-1.99.92-3.29.92-2.53 0-4.67-1.71-5.44-4.01H3.31v2.88A9.72 9.72 0 0 0 12 21.76Z" />
+                  <path fill="#FBBC05" d="M6.56 13.52a5.83 5.83 0 0 1 0-3.04V7.6H3.31a9.76 9.76 0 0 0 0 8.8l3.25-2.88Z" />
+                  <path fill="#EA4335" d="M12 6.47c1.42 0 2.69.49 3.69 1.45l2.77-2.77C16.82 3.62 14.62 2.24 12 2.24A9.72 9.72 0 0 0 3.31 7.6l3.25 2.88C7.33 8.18 9.47 6.47 12 6.47Z" />
+                </svg>
+                Continue with Google
+              </button>
 
               <p className="text-center text-[11px] text-slate-400 mt-2">
                 {mode === "signin" ? (
