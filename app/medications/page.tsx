@@ -202,8 +202,8 @@ const [editingId, setEditingId] = useState<string | null>(null);
         transition={{ duration: 0.5 }}
         className="relative w-full max-w-2xl z-10"
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="grid grid-cols-4 gap-2 self-end sm:flex sm:items-center">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#14B8A6] flex items-center justify-center shadow-sm">
               <Pill size={17} className="text-white" />
             </div>
