@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FileText, ScanLine, Loader2, X, Check, AlertTriangle, Plus, Image as ImageIcon } from "lucide-react";
+import { Camera, FileText, ScanLine, Loader2, X, Check, AlertTriangle, Plus, ImagePlus, Image as ImageIcon } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -78,6 +78,8 @@ export default function MedicalReportsPage() {
   const [loadedHistory, setLoadedHistory] = useState(false);
   const [viewingScan, setViewingScan] = useState<string | null>(null);
   const [expandedLab, setExpandedLab] = useState<string | null>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -329,10 +331,10 @@ export default function MedicalReportsPage() {
       )}
 
       {!preview && !loading && (
-        <motion.label
+        <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative w-full max-w-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/60 backdrop-blur rounded-3xl p-10 cursor-pointer hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors z-10"
+          className="relative w-full max-w-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/60 backdrop-blur rounded-3xl p-6 sm:p-10 hover:border-[#2563EB] hover:bg-[#2563EB]/5 transition-colors z-10"
         >
           <div className="w-14 h-14 rounded-full bg-white shadow-sm flex items-center justify-center border border-[#2563EB]/10">
             <Plus size={24} className="text-[#2563EB]" />
@@ -345,8 +347,27 @@ export default function MedicalReportsPage() {
               {kind === "lab" ? "Blood test, urine test, or similar printed report" : "X-ray, ultrasound, or similar imaging report"}
             </p>
           </div>
-          <input type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
-        </motion.label>
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8]"
+            >
+              <Camera size={18} />
+              Take Photo
+            </button>
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#2563EB]/30 bg-white px-4 py-3 text-sm font-semibold text-[#2563EB] transition hover:bg-[#2563EB]/5"
+            >
+              <ImagePlus size={18} />
+              Add Photo
+            </button>
+          </div>
+          <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handleFileChange} className="hidden" />
+          <input ref={photoInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+        </motion.div>
       )}
 
       {preview && (

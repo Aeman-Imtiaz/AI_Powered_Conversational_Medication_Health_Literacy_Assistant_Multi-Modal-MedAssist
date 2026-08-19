@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
-import { Camera, Loader2, X, Check, Plus } from "lucide-react";
+import { Camera, ImagePlus, Loader2, X, Check, Plus } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 
 import { db } from "../lib/firebase";
@@ -49,6 +49,8 @@ export default function PrescriptionPage() {
   const [error, setError] = useState<string | null>(null);
 
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
 
   const handleFileChange = (
@@ -451,7 +453,7 @@ export default function PrescriptionPage() {
 
       {!preview && (
 
-        <motion.label
+        <motion.div
 
           initial={{
             opacity: 0,
@@ -478,7 +480,7 @@ export default function PrescriptionPage() {
             ease: "easeInOut",
           }}
 
-          className="relative w-full max-w-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/70 backdrop-blur rounded-3xl p-10 cursor-pointer hover:border-[#2563EB] transition z-10"
+          className="relative w-full max-w-2xl flex flex-col items-center justify-center gap-3 border-2 border-dashed border-[#2563EB]/30 bg-white/70 backdrop-blur rounded-3xl p-6 sm:p-10 hover:border-[#2563EB] transition z-10"
         >
 
           <motion.div
@@ -523,22 +525,43 @@ export default function PrescriptionPage() {
 
 
 
+          <div className="grid w-full grid-cols-1 gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => cameraInputRef.current?.click()}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#2563EB] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-[#1D4ED8]"
+            >
+              <Camera size={18} />
+              Take Photo
+            </button>
+            <button
+              type="button"
+              onClick={() => photoInputRef.current?.click()}
+              className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#2563EB]/30 bg-white px-4 py-3 text-sm font-semibold text-[#2563EB] transition hover:bg-[#2563EB]/5"
+            >
+              <ImagePlus size={18} />
+              Add Photo
+            </button>
+          </div>
+
           <input
-
+            ref={cameraInputRef}
             type="file"
-
             accept="image/*"
-
             capture="environment"
-
             onChange={handleFileChange}
-
             className="hidden"
-
+          />
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            className="hidden"
           />
 
 
-        </motion.label>
+        </motion.div>
 
       )}
 

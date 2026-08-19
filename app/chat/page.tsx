@@ -83,6 +83,7 @@ export default function ChatPage() {
   const [speakingIndex, setSpeakingIndex] = useState<number | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const recognitionRef = useRef<any>(null);
+  const sendMessageRef = useRef<(overrideText?: string) => Promise<void>>(async () => {});
 
   useEffect(() => {
     if (!user) {
@@ -164,8 +165,7 @@ export default function ChatPage() {
       }
 
       if (finalText) {
-        // eslint-disable-next-line react-hooks/immutability
-        sendMessage(finalText.trim());
+        void sendMessageRef.current(finalText.trim());
       } else {
         setInput(interimText);
       }
@@ -181,7 +181,6 @@ export default function ChatPage() {
 
     recognitionRef.current = recognition;
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const startListening = () => {
@@ -299,6 +298,12 @@ export default function ChatPage() {
       setLoading(false);
     }
   };
+
+  // Speech recognition is initialized once, so it must call the latest message
+  // handler rather than the first-render handler with an empty chat history.
+  useEffect(() => {
+    sendMessageRef.current = sendMessage;
+  });
 
   const clearConversation = () => {
     if (confirm("Are you sure you want to clear the entire conversation?")) {
