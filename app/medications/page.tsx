@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb, FileText, MapPin } from "lucide-react";
+import { Plus, Pill, Clock, Trash2, Check, X, Camera, Pencil, Lightbulb, FileText, MapPin, AlertTriangle, CalendarCheck } from "lucide-react";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { useAuth } from "../context/AuthContext";
@@ -19,6 +19,9 @@ type Medicine = {
   frequency: string;
   time: string;
   createdAt?: string;
+  courseDurationDays?: number;
+  totalQuantity?: number;
+  quantityPerDay?: number;
 };
 
 type AdherenceLog = {
@@ -30,13 +33,15 @@ const getTodayKey = () => {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 };
 
+const LOW_STOCK_THRESHOLD = 5;
+
 export default function MedicationsPage() {
   const { user } = useAuth();
   const [medicines, setMedicines] = useState<Medicine[]>([]);
   const [log, setLog] = useState<AdherenceLog>({});
   const [loaded, setLoaded] = useState(false);
   const [showForm, setShowForm] = useState(false);
-const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [nudge, setNudge] = useState<string | null>(null);
   const [nudgeLoading, setNudgeLoading] = useState(false);
 
@@ -44,12 +49,16 @@ const [editingId, setEditingId] = useState<string | null>(null);
   const [dosage, setDosage] = useState("");
   const [frequency, setFrequency] = useState("");
   const [time, setTime] = useState("");
+  const [courseDurationDays, setCourseDurationDays] = useState("");
+  const [totalQuantity, setTotalQuantity] = useState("");
+  const [quantityPerDay, setQuantityPerDay] = useState("");
 
   const todayKey = getTodayKey();
 
   useEffect(() => {
+  
     if (!user) {
-
+   
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setMedicines([]);
       setLog({});
@@ -82,7 +91,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
         const settingsRaw = await getDoc(doc(db, "users", user!.uid));
         const settingsData = settingsRaw.exists() ? settingsRaw.data().settings : {};
 
-        const todayKey2 = getTodayKey();
+
         const last7 = Array.from({ length: 7 }, (_, i) => {
           const d = new Date();
           d.setDate(d.getDate() - (6 - i));
@@ -125,11 +134,14 @@ const [editingId, setEditingId] = useState<string | null>(null);
     setDoc(doc(db, "users", user.uid), { adherenceLog: log }, { merge: true }).catch(() => {});
   }, [log, loaded, user]);
 
- const resetForm = () => {
+  const resetForm = () => {
     setName("");
     setDosage("");
     setFrequency("");
     setTime("");
+    setCourseDurationDays("");
+    setTotalQuantity("");
+    setQuantityPerDay("");
     setShowForm(false);
     setEditingId(null);
   };
@@ -139,6 +151,9 @@ const [editingId, setEditingId] = useState<string | null>(null);
     setDosage(med.dosage);
     setFrequency(med.frequency);
     setTime(med.time);
+    setCourseDurationDays(med.courseDurationDays ? String(med.courseDurationDays) : "");
+    setTotalQuantity(med.totalQuantity ? String(med.totalQuantity) : "");
+    setQuantityPerDay(med.quantityPerDay ? String(med.quantityPerDay) : "");
     setEditingId(med.id);
     setShowForm(true);
   };
@@ -146,11 +161,24 @@ const [editingId, setEditingId] = useState<string | null>(null);
   const addMedicine = () => {
     if (!name.trim()) return;
 
+    const extraFields = {
+      courseDurationDays: courseDurationDays ? Number(courseDurationDays) : undefined,
+      totalQuantity: totalQuantity ? Number(totalQuantity) : undefined,
+      quantityPerDay: quantityPerDay ? Number(quantityPerDay) : (totalQuantity ? 1 : undefined),
+    };
+
     if (editingId) {
       setMedicines((prev) =>
         prev.map((med) =>
           med.id === editingId
-            ? { ...med, name: name.trim(), dosage: dosage.trim(), frequency: frequency.trim(), time: time.trim() }
+            ? {
+                ...med,
+                name: name.trim(),
+                dosage: dosage.trim(),
+                frequency: frequency.trim(),
+                time: time.trim(),
+                ...extraFields,
+              }
             : med
         )
       );
@@ -162,6 +190,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
         frequency: frequency.trim(),
         time: time.trim(),
         createdAt: new Date().toISOString(),
+        ...extraFields,
       };
       setMedicines((prev) => [...prev, newMed]);
     }
@@ -191,6 +220,32 @@ const [editingId, setEditingId] = useState<string | null>(null);
   const todayPercentage =
     medicines.length > 0 ? Math.round((takenCount / medicines.length) * 100) : 0;
 
+  // --- Course duration + quantity calculations ---
+  const daysTakenSoFar = (med: Medicine) =>
+    Object.values(log).filter((ids) => ids.includes(med.id)).length;
+
+  const getCourseInfo = (med: Medicine) => {
+    if (!med.courseDurationDays || !med.createdAt) return null;
+    const start = new Date(med.createdAt);
+    const end = new Date(start);
+    end.setDate(end.getDate() + med.courseDurationDays);
+    const today = new Date();
+    const daysElapsed = Math.floor((today.getTime() - start.getTime()) / 86400000);
+    const isOver = today >= end;
+    return { end, daysElapsed, isOver };
+  };
+
+  const getStockInfo = (med: Medicine) => {
+    if (!med.totalQuantity) return null;
+    const perDay = med.quantityPerDay || 1;
+    const consumed = daysTakenSoFar(med) * perDay;
+    const remaining = Math.max(med.totalQuantity - consumed, 0);
+    return { remaining, isLow: remaining <= LOW_STOCK_THRESHOLD };
+  };
+
+  const courseEndedMeds = medicines.filter((m) => getCourseInfo(m)?.isOver);
+  const lowStockMeds = medicines.filter((m) => getStockInfo(m)?.isLow);
+
   return (
     <main className="relative flex-1 bg-gradient-to-b from-[#EFF6FF] via-white to-white overflow-hidden flex flex-col items-center px-4 pt-10 gap-5">
       <FloatingBlob color="#2563EB" size={340} top="-100px" right="-120px" />
@@ -203,7 +258,7 @@ const [editingId, setEditingId] = useState<string | null>(null);
         className="relative w-full max-w-2xl z-10"
       >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="grid grid-cols-4 gap-2 self-end sm:flex sm:items-center">
+          <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#2563EB] to-[#14B8A6] flex items-center justify-center shadow-sm">
               <Pill size={17} className="text-white" />
             </div>
@@ -275,6 +330,46 @@ const [editingId, setEditingId] = useState<string | null>(null);
         </GlassCard>
       )}
 
+      {/* Course ended warning */}
+      {courseEndedMeds.length > 0 && (
+        <GlassCard delay={0.06} hover={false} className="relative w-full max-w-2xl p-4 flex items-start gap-3 z-10 bg-red-50/70 border-red-200/70">
+          <div className="w-8 h-8 rounded-lg bg-red-100 flex items-center justify-center shrink-0">
+            <CalendarCheck size={15} className="text-red-600" />
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-red-800 mb-0.5">Course Completed</p>
+            <p className="text-xs text-red-700 leading-relaxed">
+              {courseEndedMeds.map((m) => m.name).join(", ")} — the prescribed duration is
+              over. Please check with your doctor before continuing.
+            </p>
+          </div>
+        </GlassCard>
+      )}
+
+      {/* Low stock warning */}
+      {lowStockMeds.length > 0 && (
+        <GlassCard delay={0.07} hover={false} className="relative w-full max-w-2xl p-4 flex items-start gap-3 z-10 bg-amber-50/70 border-amber-200/70">
+          <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
+            <AlertTriangle size={15} className="text-amber-600" />
+          </div>
+          <div className="flex-1">
+            <p className="text-xs font-semibold text-amber-800 mb-0.5">Running Low</p>
+            <p className="text-xs text-amber-700 leading-relaxed">
+              {lowStockMeds
+                .map((m) => `${m.name} (${getStockInfo(m)?.remaining} left)`)
+                .join(", ")}{" "}
+              — time to restock soon.
+            </p>
+            <Link
+              href={`/pharmacy?medicine=${encodeURIComponent(lowStockMeds[0].name)}`}
+              className="text-xs font-semibold text-amber-800 underline inline-block mt-1"
+            >
+              Find nearby pharmacy
+            </Link>
+          </div>
+        </GlassCard>
+      )}
+
       {medicines.length > 0 && (nudge || nudgeLoading) && (
         <GlassCard delay={0.08} hover={false} className="relative w-full max-w-2xl p-4 flex items-start gap-3 z-10 bg-amber-50/60 border-amber-200/70">
           <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -339,6 +434,47 @@ const [editingId, setEditingId] = useState<string | null>(null);
                 className="w-full border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
               />
 
+              <div className="border-t border-slate-100 pt-3 mt-1">
+                <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wide mb-2">
+                  Optional — Course & Stock Tracking
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Course (days)</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={courseDurationDays}
+                      onChange={(e) => setCourseDurationDays(e.target.value)}
+                      placeholder="e.g. 25"
+                      className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Total qty</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={totalQuantity}
+                      onChange={(e) => setTotalQuantity(e.target.value)}
+                      placeholder="e.g. 50"
+                      className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[10px] text-slate-400 block mb-1">Per day</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={quantityPerDay}
+                      onChange={(e) => setQuantityPerDay(e.target.value)}
+                      placeholder="e.g. 2"
+                      className="w-full border border-slate-200 rounded-xl px-2.5 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB]"
+                    />
+                  </div>
+                </div>
+              </div>
+
               <motion.button
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
@@ -380,6 +516,9 @@ const [editingId, setEditingId] = useState<string | null>(null);
           <AnimatePresence>
             {medicines.map((med, i) => {
               const taken = isTakenToday(med.id);
+              const courseInfo = getCourseInfo(med);
+              const stockInfo = getStockInfo(med);
+
               return (
                 <motion.div
                   key={med.id}
@@ -391,60 +530,91 @@ const [editingId, setEditingId] = useState<string | null>(null);
                 >
                   <GlassCard
                     hover={false}
-                    className={`p-4 flex items-center gap-3 ${
+                    className={`p-4 flex flex-col gap-2 ${
                       taken ? "bg-[#2563EB]/5 border-[#2563EB]/20" : ""
                     }`}
                   >
-                    <motion.button
-                      whileTap={{ scale: 0.9 }}
-                      onClick={() => toggleTaken(med.id)}
-                      className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
-                        taken
-                          ? "bg-[#2563EB] border-[#2563EB] text-white"
-                          : "border-slate-200 text-transparent"
-                      }`}
-                    >
-                      <Check size={20} />
-                    </motion.button>
+                    <div className="flex items-center gap-3">
+                      <motion.button
+                        whileTap={{ scale: 0.9 }}
+                        onClick={() => toggleTaken(med.id)}
+                        className={`w-11 h-11 rounded-full flex items-center justify-center shrink-0 border-2 transition-colors ${
+                          taken
+                            ? "bg-[#2563EB] border-[#2563EB] text-white"
+                            : "border-slate-200 text-transparent"
+                        }`}
+                      >
+                        <Check size={20} />
+                      </motion.button>
 
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-slate-900 truncate">
-                        {med.name}
-                      </h3>
-                      <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
-                        {med.dosage && <span>{med.dosage}</span>}
-                        {med.frequency && <span>{med.frequency}</span>}
-                      </div>
-                      {med.time && (
-                        <div className="flex items-center gap-1 text-xs text-[#2563EB] mt-1">
-                          <Clock size={12} />
-                          <span>{med.time}</span>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-semibold text-slate-900 truncate">
+                          {med.name}
+                        </h3>
+                        <div className="flex items-center gap-3 text-xs text-slate-500 mt-0.5">
+                          {med.dosage && <span>{med.dosage}</span>}
+                          {med.frequency && <span>{med.frequency}</span>}
                         </div>
-                      )}
+                        {med.time && (
+                          <div className="flex items-center gap-1 text-xs text-[#2563EB] mt-1">
+                            <Clock size={12} />
+                            <span>{med.time}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1 shrink-0">
+                        <Link href={`/pharmacy?medicine=${encodeURIComponent(med.name)}`}>
+                          <span
+                            className="text-slate-300 hover:text-[#2563EB] transition-colors p-1 inline-flex"
+                            title="Find nearby pharmacy"
+                          >
+                            <MapPin size={16} />
+                          </span>
+                        </Link>
+                        <button
+                          onClick={() => startEdit(med)}
+                          className="text-slate-300 hover:text-[#2563EB] transition-colors p-1"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                        <button
+                          onClick={() => deleteMedicine(med.id)}
+                          className="text-slate-300 hover:text-red-500 transition-colors p-1"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="flex items-center gap-1 shrink-0">
-                      <Link href={`/pharmacy?medicine=${encodeURIComponent(med.name)}`}>
-                        <span
-                          className="text-slate-300 hover:text-[#2563EB] transition-colors p-1 inline-flex"
-                          title="Find nearby pharmacy"
-                        >
-                          <MapPin size={16} />
-                        </span>
-                      </Link>
-                      <button
-                        onClick={() => startEdit(med)}
-                        className="text-slate-300 hover:text-[#2563EB] transition-colors p-1"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                      <button
-                        onClick={() => deleteMedicine(med.id)}
-                        className="text-slate-300 hover:text-red-500 transition-colors p-1"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
+                    {(courseInfo || stockInfo) && (
+                      <div className="flex flex-wrap gap-2 pl-14">
+                        {courseInfo && (
+                          <span
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                              courseInfo.isOver
+                                ? "bg-red-100 text-red-600"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {courseInfo.isOver
+                              ? "Course ended"
+                              : `Day ${courseInfo.daysElapsed + 1} of ${med.courseDurationDays}`}
+                          </span>
+                        )}
+                        {stockInfo && (
+                          <span
+                            className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${
+                              stockInfo.isLow
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-slate-100 text-slate-500"
+                            }`}
+                          >
+                            {stockInfo.remaining} left
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </GlassCard>
                 </motion.div>
               );
@@ -452,7 +622,8 @@ const [editingId, setEditingId] = useState<string | null>(null);
           </AnimatePresence>
         </div>
       )}
-      
+ 
     </main>
   );
+
 }
