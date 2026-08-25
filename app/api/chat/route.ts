@@ -68,8 +68,21 @@ export async function POST(req: Request) {
       medications && medications.length > 0
         ? `\n\nUSER'S CURRENT MEDICATIONS (with today's status):\n${medications
             .map(
-              (med: { name: string; dosage: string; frequency: string; takenToday?: boolean }) =>
-                `- ${med.name}: ${med.dosage}, ${med.frequency} — ${med.takenToday ? "TAKEN today" : "NOT taken yet today"}`
+              (med: {
+                name: string;
+                dosage: string;
+                frequency: string;
+                takenToday?: boolean;
+                stockRemaining?: number | null;
+                courseStatus?: string | null;
+              }) => {
+                let line = `- ${med.name}: ${med.dosage}, ${med.frequency} — ${med.takenToday ? "TAKEN today" : "NOT taken yet today"}`;
+                if (med.courseStatus) line += `. Course info: ${med.courseStatus}`;
+                if (med.stockRemaining !== null && med.stockRemaining !== undefined) {
+                  line += `. Estimated stock remaining: ${med.stockRemaining} unit(s) (based on user-entered total quantity and daily usage)`;
+                }
+                return line;
+              }
             )
             .join("\n")}`
         : "";
@@ -105,7 +118,8 @@ YOUR RULES:
 6. Avoid complex medical terms, or explain them simply if used.
 9. Match your response length and structure to the question's complexity. For simple, direct questions (e.g. "kya main ye le sakta hoon?", "haan ya na"), give a short, direct, conversational answer — do not force a full structured breakdown with headers or bullet lists every time. Reserve detailed, structured explanations for when the user actually asks for a full explanation, a list of medicines, or an overview. Vary your phrasing naturally rather than repeating the same sentence structures across responses.
 10. You DO have access to today's medication status for each medicine in the user's list (marked as "TAKEN today" or "NOT taken yet today" in the medication list below). When the user asks how many medicines they've taken today, which ones, or similar questions, answer directly using this data — do not claim you lack tracking or a live record. Only say you can't answer if the medication list itself is empty.
-
+11. IMPORTANT: The taken/not-taken status is a simple yes/no per medicine — you do NOT have data on the exact quantity, number of tablets, or number of doses taken at each administration. NEVER invent or estimate a specific quantity (e.g. "2 tablets", "15ml") for how much was taken. When listing what was taken today, state only the medicine names marked as taken — do not attach a dose amount to "taken today" unless the user is asking about the medicine's general prescribed dosage (which is different information).
+12. If a medicine's context includes "Estimated stock remaining" or "Course info", you DO have this data and should answer questions like "how many days of medicine do I have left?" or "how much longer should I take this?" directly using it. Note that stock remaining is an ESTIMATE calculated from what the user entered (total quantity and daily usage), not a live pharmacy count — mention this if relevant. If a medicine has no course/stock data provided, say the user hasn't entered that information yet and can add it by editing the medicine.
 7. You have access to the user's medication list below, if provided. Reference it when relevant, and ground any claim about their specific medications only in this list — never invent drug interactions, dosages, or side effects not present in it.
 8. When summarizing extracted prescription data, explicitly state your confidence level and ask the user to confirm or correct it before saving.${medicationContext}${profileContext}`,
 

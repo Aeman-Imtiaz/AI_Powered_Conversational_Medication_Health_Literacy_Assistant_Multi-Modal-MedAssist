@@ -23,6 +23,10 @@ type Medicine = {
   dosage: string;
   frequency: string;
   time: string;
+  createdAt?: string;
+  courseDurationDays?: number;
+  totalQuantity?: number;
+  quantityPerDay?: number;
 };
 
 type Profile = {
@@ -262,10 +266,36 @@ export default function ChatPage() {
 
     try {
       const todayTaken = adherenceLog[todayKey] || [];
-      const medicationsWithStatus = medicines.map((med) => ({
-        ...med,
-        takenToday: todayTaken.includes(med.id),
-      }));
+      const medicationsWithStatus = medicines.map((med) => {
+        const perDay = med.quantityPerDay || 1;
+        const daysTakenSoFar = Object.values(adherenceLog).filter((ids) =>
+          ids.includes(med.id)
+        ).length;
+
+        let stockRemaining: number | null = null;
+        if (med.totalQuantity) {
+          stockRemaining = Math.max(med.totalQuantity - daysTakenSoFar * perDay, 0);
+        }
+
+        let courseStatus: string | null = null;
+        if (med.courseDurationDays && med.createdAt) {
+          const start = new Date(med.createdAt);
+          const end = new Date(start);
+          end.setDate(end.getDate() + med.courseDurationDays);
+          const today = new Date();
+          const daysElapsed = Math.floor((today.getTime() - start.getTime()) / 86400000);
+          courseStatus = today >= end
+            ? "course completed (prescribed duration is over)"
+            : `day ${daysElapsed + 1} of ${med.courseDurationDays}-day course`;
+        }
+
+        return {
+          ...med,
+          takenToday: todayTaken.includes(med.id),
+          stockRemaining,
+          courseStatus,
+        };
+      });
 
       const res = await fetch("/api/chat", {
         method: "POST",
